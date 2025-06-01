@@ -1,9 +1,13 @@
+import os
 from vertexai.preview.generative_models import GenerativeModel
 import vertexai
 
-def main():
-    vertexai.init(project="halogen-framing-461606-q5", location="us-central1") # PUT project ID and location IN ENV FILE
+PROJECT_ID = os.getenv("VERTEX_PROJECT_ID")
+LOCATION = os.getenv("VERTEX_LOCATION")
 
+
+def main():
+    vertexai.init(project=PROJECT_ID, location=LOCATION)
     model = GenerativeModel("gemini-2.0-flash-lite-001")
 
     print("🤖 Gemini Agent is ready. Type 'exit' to quit.")
