@@ -1,232 +1,239 @@
 import unittest
 import pandas as pd
-import re
 import os
 from unittest.mock import patch
+import re
 
-class TestCourseMerger(unittest.TestCase):
+# Assuming the code to be tested is saved in a file named 'merge_data.py'
+# and the following import is adjusted accordingly:
+# from merge_data import ...  (or whatever name the file is)
 
+# Create dummy excel files for testing
+def create_dummy_audit_sheet(filename="Audit Sheet.xlsx", data=None):
+    if data is None:
+        data = [
+            ["COSC3106 (3CR)", "25SP"],
+            ["COSC3127 (3CR)", "CR"],
+            ["COSC1046 (3CR)", "21F"],
+            ["COSC2000 (3CR)", "CR"]
+        ]
+    df = pd.DataFrame(data)
+    df.to_excel(filename, index=False, header=False)
+
+def create_dummy_audit_sheet_with_specific_cells(filename="Audit Sheet.xlsx", data=None):
+    if data is None:
+        data = [
+            ["", "", "", "", "", "", "COSC3106", "25SP"],
+            ["", "", "", "", "", "", "", "CR"],
+            ["", "", "", "", "", "", "COSC1046", "21F"],
+            ["", "", "", "", "", "", "", "CR"]
+        ]
+    df = pd.DataFrame(data)
+    df.to_excel(filename, index=False, header=False)
+
+def create_dummy_past_courses(filename="past_courses.xlsx", data=None):
+    if data is None:
+        data = [
+            ["Term", "Course Code", "Course Name", "Grade", "Credit"],
+            ["21F", "COSC1046", "Introduction to Computer Science I", "91", 3]
+        ]
+    df = pd.DataFrame(data)
+    df.to_excel(filename, index=False, header=True)
+
+
+def remove_file(filename):
+    if os.path.exists(filename):
+        os.remove(filename)
+
+
+class TestMergeData(unittest.TestCase):
     def setUp(self):
-        # Create dummy data for testing
+        # Create dummy files before each test
         self.audit_sheet_file = "Audit Sheet.xlsx"
         self.past_courses_file = "past_courses.xlsx"
         self.output_file = "plannedCourse.csv"
-
-        self.audit_sheet_data = pd.DataFrame({
-            0: ["COSC3106 (3CR)", "COSC3127 (3CR)", "COSC1046 (3CR)", "MATH1000 (3CR)"],
-            1: ["25SP", "CR", "21F", "22FA"],
-            2: [None, None, None, None]
-        })
-        self.audit_sheet_data.to_excel(self.audit_sheet_file, index=False, header=False)
-
-        self.past_courses_data = pd.DataFrame({
-            "Term": ["21F"],
-            "Course Code": ["COSC1046"],
-            "Course Name": ["Introduction to Computer Science I"],
-            "Grade": [91],
-            "Credit": [3]
-        })
-        self.past_courses_data.to_excel(self.past_courses_file, index=False)
+        remove_file(self.audit_sheet_file)
+        remove_file(self.past_courses_file)
+        remove_file(self.output_file)
 
 
     def tearDown(self):
-        # Clean up created files after each test
-        for file in [self.audit_sheet_file, self.past_courses_file, self.output_file]:
-            if os.path.exists(file):
-                os.remove(file)
+        # Remove dummy files after each test
+        remove_file(self.audit_sheet_file)
+        remove_file(self.past_courses_file)
+        remove_file(self.output_file)
 
-    @patch('pandas.read_excel')
-    @patch('pandas.DataFrame.to_csv')
-    def test_process_audit_sheet_normal_case(self, mock_to_csv, mock_read_excel):
-        # Mock the excel reading function
-        mock_read_excel.return_value = self.audit_sheet_data
+    def test_audit_sheet_extraction_normal_case(self):
+        create_dummy_audit_sheet(self.audit_sheet_file)
 
-        # Run the code
-        import importlib
-        importlib.reload(sys.modules[__name__]) # Reload the module to run the code
+        # Execute the code to generate the CSV
+        exec(open("code.py").read())
+        # Assert that the output file exists
+        self.assertTrue(os.path.exists(self.output_file))
 
-        # Assert that to_csv was called with the correct filename.
-        mock_to_csv.assert_called_once()
-        self.assertTrue(self.output_file in mock_to_csv.call_args.args)
+        # Read the output file and perform assertions
+        output_df = pd.read_csv(self.output_file)
+        self.assertEqual(len(output_df), 2)  # Expecting two entries
+        self.assertTrue(output_df["Course Code"].isin(["COSC3106", "COSC1046"]).all())
+        self.assertTrue(output_df["Status"].isin(["To be Registered", "To be Registered"]).all())
+        self.assertTrue(output_df["Credits"].isin([0, 0]).all())
 
-        # Read the output file and check the results.
-        expected_output_data = pd.DataFrame({
-            "Term": ["25SP", "21F", "22FA"],
-            "Course Code": ["COSC3106", "COSC1046", "MATH1000"],
-            "Status": ["To be Registered", "To be Registered", "To be Registered"],
-            "Credits": [0, 0, 0],
-            "Notes": ["Predicted Term: 25SP", "Predicted Term: 21F", "Predicted Term: 22FA"]
-        })
+    def test_audit_sheet_extraction_with_specific_cells(self):
+         create_dummy_audit_sheet_with_specific_cells(self.audit_sheet_file)
+
+         # Execute the code to generate the CSV
+         exec(open("code.py").read())
+
+         # Assert that the output file exists
+         self.assertTrue(os.path.exists(self.output_file))
+
+         # Read the output file and perform assertions
+         output_df = pd.read_csv(self.output_file)
+         self.assertEqual(len(output_df), 2)
+         self.assertTrue(output_df["Course Code"].isin(["COSC3106", "COSC1046"]).all())
+         self.assertTrue(output_df["Status"].isin(["To be Registered", "To be Registered"]).all())
+         self.assertTrue(output_df["Credits"].isin([0, 0]).all())
+
+    def test_audit_sheet_extraction_no_matches(self):
+        # Create an audit sheet with no matching course codes
+        create_dummy_audit_sheet(self.audit_sheet_file, [["MATH1000 (3CR)", "21F"]])
+
+        # Execute the code
+        exec(open("code.py").read())
+
+        # Check if the output file exists
+        self.assertTrue(os.path.exists(self.output_file))
+
+        # Read the output file and check the content.
+        output_df = pd.read_csv(self.output_file)
+        self.assertEqual(len(output_df), 1)
+        self.assertTrue(output_df["Course Code"].isin(["MATH1000"]).all())
+        self.assertEqual(output_df["Status"][0], "To be Registered")
+
+
+    def test_audit_sheet_extraction_empty_audit_sheet(self):
+        # Create an empty audit sheet
+        create_dummy_audit_sheet(self.audit_sheet_file, [])
+
+        # Execute the code
+        exec(open("code.py").read())
+
+        # Check if the output file exists
+        self.assertTrue(os.path.exists(self.output_file))
+
+        # Read the output file and check the content.
+        output_df = pd.read_csv(self.output_file)
+        self.assertEqual(len(output_df), 0)
+
+    def test_audit_sheet_extraction_missing_term(self):
+        create_dummy_audit_sheet(self.audit_sheet_file, [["COSC3106 (3CR)", None]])
+
+        # Execute the code
+        exec(open("code.py").read())
+
+        # Assert that the output file exists
+        self.assertTrue(os.path.exists(self.output_file))
+
+        # Read the output file and perform assertions
+        output_df = pd.read_csv(self.output_file)
+        self.assertEqual(len(output_df), 1)
+        self.assertEqual(output_df["Term"][0], None)
+        self.assertEqual(output_df["Course Code"][0], "COSC3106")
+        self.assertEqual(output_df["Status"][0], "To be Registered")
+        self.assertEqual(output_df["Credits"][0], 0)
+        self.assertEqual(output_df["Notes"][0], "Predicted Term: None")
+
+    def test_audit_sheet_extraction_term_is_CR(self):
+        create_dummy_audit_sheet(self.audit_sheet_file, [["COSC3106 (3CR)", "CR"]])
+
+        # Execute the code
+        exec(open("code.py").read())
+
+        # Assert that the output file exists
+        self.assertTrue(os.path.exists(self.output_file))
+
+        # Read the output file and perform assertions
+        output_df = pd.read_csv(self.output_file)
+        self.assertEqual(len(output_df), 1)
+        self.assertEqual(output_df["Term"][0], None)
+        self.assertEqual(output_df["Course Code"][0], "COSC3106")
+        self.assertEqual(output_df["Status"][0], "Completed")
+        self.assertEqual(output_df["Credits"][0], 0)
+
+    def test_audit_sheet_extraction_with_invalid_course_code_format(self):
+        create_dummy_audit_sheet(self.audit_sheet_file, [["INVALID-CODE (3CR)", "21F"]])
+        exec(open("code.py").read())
+
+        self.assertTrue(os.path.exists(self.output_file))
 
         output_df = pd.read_csv(self.output_file)
-        pd.testing.assert_frame_equal(output_df.reset_index(drop=True), expected_output_data.reset_index(drop=True))
+        self.assertEqual(len(output_df), 0)  # Expecting no entries as invalid course code
 
+    def test_audit_sheet_extraction_missing_credits(self):
+        create_dummy_audit_sheet(self.audit_sheet_file, [["COSC3106", "21F"]])
+        exec(open("code.py").read())
 
-    @patch('pandas.read_excel')
-    @patch('pandas.DataFrame.to_csv')
-    def test_process_audit_sheet_with_completed_course(self, mock_to_csv, mock_read_excel):
-        # Mock the excel reading function
-        audit_data = pd.DataFrame({
-            0: ["COSC3106 (3CR)", "COSC3127 (3CR)"],
-            1: ["25SP", "CR"],
-        })
-        mock_read_excel.return_value = audit_data
-
-        import importlib
-        importlib.reload(sys.modules[__name__])
-
-        # Assert that to_csv was called with the correct filename.
-        mock_to_csv.assert_called_once()
-        self.assertTrue(self.output_file in mock_to_csv.call_args.args)
-        # Read the output file and check the results.
-        expected_output_data = pd.DataFrame({
-            "Term": ["25SP"],
-            "Course Code": ["COSC3106"],
-            "Status": ["To be Registered"],
-            "Credits": [0],
-            "Notes": ["Predicted Term: 25SP"]
-        })
-        output_df = pd.read_csv(self.output_file)
-        pd.testing.assert_frame_equal(output_df.reset_index(drop=True), expected_output_data.reset_index(drop=True))
-
-
-    @patch('pandas.read_excel')
-    @patch('pandas.DataFrame.to_csv')
-    def test_process_audit_sheet_with_no_term(self, mock_to_csv, mock_read_excel):
-        # Mock the excel reading function.  No term is provided.
-        audit_data = pd.DataFrame({
-            0: ["COSC3106 (3CR)"],
-            1: [None],
-        })
-        mock_read_excel.return_value = audit_data
-        import importlib
-        importlib.reload(sys.modules[__name__])
-
-        mock_to_csv.assert_called_once()
-        self.assertTrue(self.output_file in mock_to_csv.call_args.args)
-
-        # Read the output file and check the results.
-        expected_output_data = pd.DataFrame({
-            "Term": [None],
-            "Course Code": ["COSC3106"],
-            "Status": ["To be Registered"],
-            "Credits": [0],
-            "Notes": [""]
-        })
-        output_df = pd.read_csv(self.output_file)
-        pd.testing.assert_frame_equal(output_df.reset_index(drop=True), expected_output_data.reset_index(drop=True))
-
-    @patch('pandas.read_excel')
-    @patch('pandas.DataFrame.to_csv')
-    def test_process_audit_sheet_with_empty_audit_sheet(self, mock_to_csv, mock_read_excel):
-        # Mock the excel reading function.  Empty audit sheet.
-        audit_data = pd.DataFrame({0: [], 1: []})
-        mock_read_excel.return_value = audit_data
-        import importlib
-        importlib.reload(sys.modules[__name__])
-        mock_to_csv.assert_called_once()
-        self.assertTrue(self.output_file in mock_to_csv.call_args.args)
-
-        # Read the output file and check the results.
-        expected_output_data = pd.DataFrame({
-            "Term": [],
-            "Course Code": [],
-            "Status": [],
-            "Credits": [],
-            "Notes": []
-        })
-        output_df = pd.read_csv(self.output_file)
-        pd.testing.assert_frame_equal(output_df.reset_index(drop=True), expected_output_data.reset_index(drop=True))
-
-    @patch('pandas.read_excel')
-    @patch('pandas.DataFrame.to_csv')
-    def test_specific_cells_processing_normal(self, mock_to_csv, mock_read_excel):
-      # Mock the excel reading function
-        audit_data = pd.DataFrame({
-            'A': ['COSC3106 (3CR)'],
-            'B': ['25SP'],
-            'E': ['COSC1046'],
-            'F': ['21F'],
-            'G': ['MATH1000'],
-            'H': ['22FA']
-        })
-        mock_read_excel.return_value = audit_data
-        import importlib
-        importlib.reload(sys.modules[__name__])
-
-        mock_to_csv.assert_called_once()
-        self.assertTrue(self.output_file in mock_to_csv.call_args.args)
-
-        # Read the output file and check the results.
-        expected_output_data = pd.DataFrame({
-            "Term": ['25SP', '21F', '22FA'],
-            "Course Code": ['COSC3106', 'COSC1046', 'MATH1000'],
-            "Status": ['To be Registered', 'To be Registered', 'To be Registered'],
-            "Credits": [0, 3, 3],
-            "Notes": ['Predicted Term: 25SP', 'Predicted Term: 21F', 'Predicted Term: 22FA']
-        })
+        self.assertTrue(os.path.exists(self.output_file))
 
         output_df = pd.read_csv(self.output_file)
-        pd.testing.assert_frame_equal(output_df.reset_index(drop=True), expected_output_data.reset_index(drop=True))
+        self.assertEqual(len(output_df), 0) # Expecting no entries
 
-    @patch('pandas.read_excel')
-    @patch('pandas.DataFrame.to_csv')
-    def test_specific_cells_processing_no_term(self, mock_to_csv, mock_read_excel):
-      # Mock the excel reading function
-        audit_data = pd.DataFrame({
-            'E': ['COSC1046'],
-            'F': [None],
-            'G': ['MATH1000'],
-            'H': [None]
-        })
-        mock_read_excel.return_value = audit_data
-        import importlib
-        importlib.reload(sys.modules[__name__])
+    def test_audit_sheet_extraction_no_neighboring_cell(self):
+         create_dummy_audit_sheet(self.audit_sheet_file, [["COSC3106 (3CR)"]])
+         exec(open("code.py").read())
 
-        mock_to_csv.assert_called_once()
-        self.assertTrue(self.output_file in mock_to_csv.call_args.args)
+         self.assertTrue(os.path.exists(self.output_file))
 
-        # Read the output file and check the results.
-        expected_output_data = pd.DataFrame({
-            "Term": [None, None],
-            "Course Code": ['COSC1046', 'MATH1000'],
-            "Status": ['To be Registered', 'To be Registered'],
-            "Credits": [3, 3],
-            "Notes": ['', '']
-        })
+         output_df = pd.read_csv(self.output_file)
+         self.assertEqual(len(output_df), 1)
+         self.assertEqual(output_df["Term"][0], None)
+         self.assertEqual(output_df["Course Code"][0], "COSC3106")
+         self.assertEqual(output_df["Status"][0], "To be Registered")
+         self.assertEqual(output_df["Credits"][0], 0)
 
+    def test_specific_cells_extraction_no_matches(self):
+        create_dummy_audit_sheet(self.audit_sheet_file, [["", "", "", "", "", "", "MATH1000", "25SP"]])
+
+        # Execute the code to generate the CSV
+        exec(open("code.py").read())
+        # Assert that the output file exists
+        self.assertTrue(os.path.exists(self.output_file))
+
+        # Read the output file and perform assertions
         output_df = pd.read_csv(self.output_file)
-        pd.testing.assert_frame_equal(output_df.reset_index(drop=True), expected_output_data.reset_index(drop=True))
+        self.assertEqual(len(output_df), 1)  # Expecting one entry
+        self.assertTrue(output_df["Course Code"].isin(["MATH1000"]).all())
+        self.assertEqual(output_df["Status"][0], "To be Registered")
+        self.assertEqual(output_df["Term"][0], "25SP")
+        self.assertEqual(output_df["Credits"][0], 0)
 
-    @patch('pandas.read_excel')
-    @patch('pandas.DataFrame.to_csv')
-    def test_specific_cells_processing_completed(self, mock_to_csv, mock_read_excel):
-      # Mock the excel reading function
-        audit_data = pd.DataFrame({
-            'E': ['COSC1046'],
-            'F': ['CR'],
-            'G': ['MATH1000'],
-            'H': ['CR']
-        })
-        mock_read_excel.return_value = audit_data
-        import importlib
-        importlib.reload(sys.modules[__name__])
+    def test_specific_cells_extraction_term_CR(self):
+        create_dummy_audit_sheet(self.audit_sheet_file, [["", "", "", "", "", "", "MATH1000", "CR"]])
 
-        mock_to_csv.assert_called_once()
-        self.assertTrue(self.output_file in mock_to_csv.call_args.args)
+        # Execute the code to generate the CSV
+        exec(open("code.py").read())
+        # Assert that the output file exists
+        self.assertTrue(os.path.exists(self.output_file))
 
-        # Read the output file and check the results.
-        expected_output_data = pd.DataFrame({
-            "Term": [None, None],
-            "Course Code": ['COSC1046', 'MATH1000'],
-            "Status": ['Completed', 'Completed'],
-            "Credits": [3, 3],
-            "Notes": ['', '']
-        })
-
+        # Read the output file and perform assertions
         output_df = pd.read_csv(self.output_file)
-        pd.testing.assert_frame_equal(output_df.reset_index(drop=True), expected_output_data.reset_index(drop=True))
+        self.assertEqual(len(output_df), 1)  # Expecting one entry
+        self.assertTrue(output_df["Course Code"].isin(["MATH1000"]).all())
+        self.assertEqual(output_df["Status"][0], "Completed")
+        self.assertEqual(output_df["Term"][0], None)
+        self.assertEqual(output_df["Credits"][0], 3)
 
-import sys
-if __name__ == '__main__':
+    def test_specific_cells_extraction_invalid_course_code(self):
+        create_dummy_audit_sheet(self.audit_sheet_file, [["", "", "", "", "", "", "INVALID-CODE", "25SP"]])
+
+        # Execute the code to generate the CSV
+        exec(open("code.py").read())
+        # Assert that the output file exists
+        self.assertTrue(os.path.exists(self.output_file))
+
+        # Read the output file and perform assertions
+        output_df = pd.read_csv(self.output_file)
+        self.assertEqual(len(output_df), 0) # Expecting no entries
+
+if __name__ == "__main__":
     unittest.main()
