@@ -25,16 +25,21 @@ jobs:
 
     - name: Install Code Review Agent dependencies
       run: |
-        pip install -r agents/code-review-agent/requirements.txt
+        if [ -f agents/code-review-agent/requirements.txt ]; then pip install -r agents/code-review-agent/requirements.txt; fi
 
-    - name: Install Test Generator dependencies
+    - name: Install Vertex AI SDK
       run: |
-        pip install -r agents/Test_generator/generated_tests/requirements.txt
+        pip install google-cloud-aiplatform
 
-    # - name: Run Code Review Agent (optional)
-    #   run: |
-    #     python agents/code-review-agent/main.py
+    - name: Run Code Review Agent
+      run: |
+        python agents/code-review-agent/main.py
 
-    # - name: Run Test Generator Agent (optional)
-    #   run: |
-    #     python agents/Test_generator/main.py
+    - name: Run Test Generator Agent
+      run: |
+        python agents/Test_generator/main.py
+
+    - name: Run Generated Tests
+      run: |
+        pip install pytest
+        pytest agents/Test_generator/generated_tests/
