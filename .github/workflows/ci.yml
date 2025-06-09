@@ -29,7 +29,7 @@ jobs:
 
     - name: Install Test Generator dependencies
       run: |
-        pip install -r agents/Test_generator/requirements.txt
+        pip install -r agents/Test_generator/generated_tests/requirements.txt
 
     # - name: Run Code Review Agent (optional)
     #   run: |
