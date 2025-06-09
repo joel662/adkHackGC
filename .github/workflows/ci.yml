@@ -1,0 +1,40 @@
+name: CI - Agents Test Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.10
+
+    - name: Install root-level dependencies (if any)
+      run: |
+        pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Install Code Review Agent dependencies
+      run: |
+        pip install -r agents/code-review-agent/requirements.txt
+
+    - name: Install Test Generator dependencies
+      run: |
+        pip install -r agents/Test_generator/requirements.txt
+
+    # - name: Run Code Review Agent (optional)
+    #   run: |
+    #     python agents/code-review-agent/main.py
+
+    # - name: Run Test Generator Agent (optional)
+    #   run: |
+    #     python agents/Test_generator/main.py
