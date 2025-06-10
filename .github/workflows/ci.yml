@@ -52,4 +52,4 @@ jobs:
     - name: Run Generated Tests
       run: |
         pip install pytest
-        pytest agents/Test_generator/generated_tests/
+        pytest sample.py agents/Test_generator/generated_tests/ 
