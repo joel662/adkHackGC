@@ -37,7 +37,7 @@ jobs:
         credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
     - name: Set GCP Project ID
-      run: echo "PROJECT_ID=your-gcp-project-id" >> $GITHUB_ENV
+      run: echo "PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
 
     - name: Run Code Review Agent
       run: |
