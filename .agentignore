@@ -1,0 +1,4 @@
+# Ignore specific files
+index.tsx
+plannedCourse.py
+test.py
