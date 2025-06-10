@@ -1,3 +1,10 @@
+name: CI - Agents Test Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -11,17 +18,14 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install dependencies
+    - name: Install root-level dependencies (if any)
       run: |
         pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    - name: Set up Google Cloud credentials
-      env:
-        GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+    - name: Install Code Review Agent dependencies
       run: |
-        echo "${{ secrets.GCP_CREDENTIALS }}" > /tmp/gcp-key.json
-        export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
+        if [ -f agents/code-review-agent/requirements.txt ]; then pip install -r agents/code-review-agent/requirements.txt; fi
 
     - name: Install Vertex AI SDK
       run: |
@@ -30,3 +34,12 @@ jobs:
     - name: Run Code Review Agent
       run: |
         python agents/code-review-agent/main.py
+
+    - name: Run Test Generator Agent
+      run: |
+        python agents/Test_generator/main.py
+
+    - name: Run Generated Tests
+      run: |
+        pip install pytest
+        pytest agents/Test_generator/generated_tests/
