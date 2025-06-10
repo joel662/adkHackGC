@@ -1,4 +1,4 @@
-import vertexai
+from vertexai import init
 from vertexai.preview.generative_models import GenerativeModel
 from utils import read_local_file, read_remote_file, is_url, detect_language_from_extension
 from prompts import build_code_review_prompt
@@ -7,7 +7,7 @@ import json
 import sys
 import os
 
-vertexai.init(project=PROJECT_ID, location=LOCATION)
+init(project=PROJECT_ID, location=LOCATION)
 model = GenerativeModel("gemini-2.0-flash-lite-001")
 
 def review_code(source_path: str):

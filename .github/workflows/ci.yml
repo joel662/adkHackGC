@@ -31,13 +31,25 @@ jobs:
       run: |
         pip install google-cloud-aiplatform
 
+    - name: Authenticate with Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+    - name: Set GCP Project ID
+      run: echo "PROJECT_ID=your-gcp-project-id" >> $GITHUB_ENV
+
     - name: Run Code Review Agent
       run: |
         python agents/code-review-agent/main.py
+      env:
+        GOOGLE_CLOUD_PROJECT: ${{ env.PROJECT_ID }}
 
     - name: Run Test Generator Agent
       run: |
         python agents/Test_generator/main.py
+      env:
+        GOOGLE_CLOUD_PROJECT: ${{ env.PROJECT_ID }}
 
     - name: Run Generated Tests
       run: |

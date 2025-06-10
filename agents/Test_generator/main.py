@@ -1,4 +1,4 @@
-import vertexai
+from vertexai import init
 from vertexai.preview.generative_models import GenerativeModel
 from utils import read_local_file, read_remote_file, is_url, detect_language_from_extension
 from prompts import build_test_generator_prompt
@@ -18,7 +18,7 @@ EXTENSION_LANGUAGE_MAP = {
     ".html": "html", ".jsx": "react-jsx", ".tsx": "react-tsx"
 }
 
-vertexai.init(project=PROJECT_ID, location=LOCATION)
+init(project=PROJECT_ID, location=LOCATION)
 model = GenerativeModel("gemini-2.0-flash-lite-001")
 
 def extract_python_dependencies(code: str) -> list:
