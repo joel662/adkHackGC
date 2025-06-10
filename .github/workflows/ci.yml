@@ -27,7 +27,7 @@ jobs:
       run: |
         if [ -f agents/code-review-agent/requirements.txt ]; then pip install -r agents/code-review-agent/requirements.txt; fi
 
-    - name: Install Test Review Agent dependencies
+    - name: Install Test Generator Agent dependencies
       run: |
         if [ -f agents/Test_generator/generated_tests/requirements.txt ]; then pip install -r agents/Test_generator/generated_tests/requirements.txt; fi
 
@@ -43,15 +43,9 @@ jobs:
     - name: Set GCP Project ID
       run: echo "PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
 
-    - name: Run Code Review Agent
+    - name: 🔁 Run Bootstrap to Review and Generate Tests for All Files
       run: |
-        python agents/code-review-agent/main.py
-      env:
-        GOOGLE_CLOUD_PROJECT: ${{ env.PROJECT_ID }}
-
-    - name: Run Test Generator Agent
-      run: |
-        python agents/Test_generator/main.py
+        python agents/bootstrap.py
       env:
         GOOGLE_CLOUD_PROJECT: ${{ env.PROJECT_ID }}
 
