@@ -27,6 +27,10 @@ jobs:
       run: |
         if [ -f agents/code-review-agent/requirements.txt ]; then pip install -r agents/code-review-agent/requirements.txt; fi
 
+    - name: Install Test Review Agent dependencies
+      run: |
+        if [ -f agents/Test_generator/generated_tests/requirements.txt ]; then pip install -r agents/Test_generator/generated_tests/requirements.txt; fi
+
     - name: Install Vertex AI SDK
       run: |
         pip install google-cloud-aiplatform
