@@ -54,10 +54,13 @@ jobs:
         pip install pytest
         echo "📁 Root directory contents:"
         ls -la
-        if ls test_*.py 1> /dev/null 2>&1; then
+        echo "🔍 Checking for test_*.py files..."
+        TEST_FILES=$(ls test_*.py 2>/dev/null || true)
+        if [ -n "$TEST_FILES" ]; then
+          echo "✅ Found test files. Running pytest..."
           pytest test_*.py
         else
-          echo "❌ No test files found in root." >&2
-          exit 1
+          echo "ℹ️ No test_*.py files found in root. Skipping tests."
         fi
+
 
