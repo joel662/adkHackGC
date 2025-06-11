@@ -52,6 +52,8 @@ jobs:
     - name: ✅ Run Generated Tests in Root
       run: |
         pip install pytest
+        echo "📁 Root directory contents:"
+        ls -la
         if ls test_*.py 1> /dev/null 2>&1; then
           pytest test_*.py
         else
