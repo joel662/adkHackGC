@@ -10,33 +10,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: 📥 Checkout repository
       uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: 🐍 Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    - name: Install base and agent requirements
+    - name: 📦 Install global dependencies
       run: |
         pip install --upgrade pip
-        pip install -r agents/code-review-agent/requirements.txt || true
-        pip install google-cloud-aiplatform
+        pip install GitPython google-cloud-aiplatform
 
-    - name: Authenticate with Google Cloud
+    - name: 📦 Install root-level requirements (if exists)
+      run: |
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: 📦 Install Code Review Agent dependencies
+      run: |
+        if [ -f agents/code-review-agent/requirements.txt ]; then pip install -r agents/code-review-agent/requirements.txt; fi
+
+    - name: 📦 Install Test Generator Agent generated test dependencies
+      run: |
+        if [ -f agents/Test_generator/generated_tests/requirements.txt ]; then pip install -r agents/Test_generator/generated_tests/requirements.txt; fi
+
+    - name: 🔐 Authenticate with Google Cloud
       uses: google-github-actions/auth@v2
       with:
         credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
-    - name: Set GCP Project ID
+    - name: 🛠 Set GCP Project ID
       run: echo "PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
 
-    - name: 🔁 Generate and Execute Tests
-      run: python agents/Test_generator/main.py
+    - name: 🔁 Run Bootstrap to Review and Generate Tests
+      run: |
+        python agents/bootstrap.py
       env:
         GOOGLE_CLOUD_PROJECT: ${{ env.PROJECT_ID }}
 
-    - name: ✅ Verify Results (if needed)
+    - name: ✅ Run Generated Tests in Root
       run: |
-        echo "Tests generated and executed via main.py"
+        pip install pytest
+        pytest test_*.py
