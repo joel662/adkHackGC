@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import requests
 from google.cloud import pubsub_v1, bigquery
 from config import PROJECT_ID, CICD_SUBSCRIPTION_ID, GITHUB_TOKEN, GITHUB_REPO, GITHUB_BRANCH
@@ -15,7 +15,7 @@ def log_to_bigquery(data: dict):
         "test_output": data.get("test_output", "")[:5000],
         "deps": ", ".join(data.get("dependencies", [])),
         "review_summary": json.dumps(data.get("review_summary", {})),
-        "timestamp": datetime.utcnow()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     table_id = f"{PROJECT_ID}.devops_logs.test_results"
     errors = bq_client.insert_rows_json(table_id, [row])

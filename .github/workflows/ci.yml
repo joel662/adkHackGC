@@ -42,3 +42,15 @@ jobs:
         echo "PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_LOCATION=us-central1" >> $GITHUB_ENV
+
+    - name: 🧠 Run Code Reviewer Agent on changed source files
+      run: |
+        echo "🔍 Detecting changed code files..."
+        git fetch origin main
+        git diff --name-only origin/main...HEAD > changed.txt
+
+        grep -E '\.(py|js|ts|java|cpp|c|go|sh|sql|jsx|tsx)$' changed.txt || true | while read file; do
+          echo "📄 Reviewing $file"
+          python agents/code-review-agent/main.py "$file"
+        done
+        echo "✅ Code review completed for changed files."
