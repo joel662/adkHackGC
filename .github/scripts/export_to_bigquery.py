@@ -1,7 +1,6 @@
 import os
 from google.cloud import bigquery
-from datetime import datetime
-
+from datetime import datetime, timezone
 client = bigquery.Client()
 project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
 table_id = f"{project_id}.devops_logs.test_results"
@@ -12,7 +11,7 @@ row = {
     "test_output": "CI completed without test execution.",
     "deps": "none",
     "review_summary": "{}",
-    "timestamp": datetime.utcnow()
+    "timestamp": datetime.now(timezone.utc).isoformat()
 }
 
 errors = client.insert_rows_json(table_id, [row])

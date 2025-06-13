@@ -126,7 +126,7 @@ def callback(message):
         review_summary = data.get("review_summary", {})
 
         root_dir = get_git_root()
-        output_dir = os.path.join(root_dir, "generated_tests")
+        output_dir = os.path.join(os.path.dirname(__file__), "..", "..", "generated_tests")
         os.makedirs(output_dir, exist_ok=True)
 
         generate_test_for_file(file_path, output_dir, root_dir, review=review_summary)

@@ -7,7 +7,7 @@ on:
 
 jobs:
   validate:
-    name: ✅ Validate & Upload
+    name: ✅ Validate Environment & Setup
     runs-on: ubuntu-latest
 
     steps:
@@ -42,17 +42,3 @@ jobs:
         echo "PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_LOCATION=us-central1" >> $GITHUB_ENV
-
-    - name: 📦 Upload generated test artifacts (if any)
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: generated-tests
-        path: agents/Test_generator/generated_tests
-
-    - name: 📊 Export test results to BigQuery
-      run: |
-        pip install google-cloud-bigquery
-        python .github/scripts/export_to_bigquery.py
-      env:
-        GOOGLE_CLOUD_PROJECT: ${{ env.PROJECT_ID }}
