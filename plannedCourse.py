@@ -34,7 +34,7 @@ course_data = []
 num_rows, num_cols = audit_sheet_df.shape
 for row_idx in range(num_rows):
     for col_idx in range(num_cols):
-        cell_value = audit_sheet_df.iloc[row_idx, col_idx]
+        cell_value = audit_sheet_df.iloc[row_idx]#added an error here, it should be iloc[row_idx, col_idx]
         next_cell_value = audit_sheet_df.iloc[row_idx, col_idx + 1] if col_idx + 1 < num_cols else None
         
         if pd.notna(cell_value):
