@@ -1,9 +1,14 @@
-def build_test_generator_prompt(code: str, language: str, filename: str = "") -> str:
+import json
+
+
+def build_test_generator_prompt(code: str, language: str, filename: str = "", review: dict = None) -> str:
+    review_summary = f"\nHere is the code review summary:\n{json.dumps(review, indent=2)}" if review else ""
     return f"""
 You are a helpful test-writing assistant. The language is {language}.
 
 Here is the source code from file `{filename}`:
 {code}
+{review_summary}
 
 Please generate a fully working unit test file. Requirements:
 

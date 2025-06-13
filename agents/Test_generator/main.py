@@ -1,18 +1,17 @@
-from vertexai import init
-from vertexai.preview.generative_models import GenerativeModel
-from utils import read_local_file, read_remote_file, is_url, detect_language_from_extension
-from prompts import build_test_generator_prompt
-from config import PROJECT_ID, LOCATION
-import sys
 import os
-import subprocess
+import sys
+import json
 import re
 import shutil
+import subprocess
 from git import Repo
+from vertexai import init
+from vertexai.preview.generative_models import GenerativeModel
+from google.cloud import pubsub_v1
 
-EXTENSION_LANGUAGE_MAP = {
-    ".py": "python"
-}
+from utils import read_local_file, detect_language_from_extension
+from prompts import build_test_generator_prompt
+from config import PROJECT_ID, LOCATION, PUBLISH_TOPIC, SUBSCRIPTION_ID
 
 init(project=PROJECT_ID, location=LOCATION)
 model = GenerativeModel("gemini-2.0-flash-lite")
@@ -25,13 +24,11 @@ def extract_python_dependencies(code: str, project_dir: str) -> list:
         'socket', 'ssl', 'hashlib', 'base64', 'pickle', 'struct', 'copy', 'traceback',
         'http', 'html', 'xml', 'email', 'pathlib', 'statistics', 'operator', 'queue'
     }
-
     local_modules = set()
     for root, _, files in os.walk(project_dir):
         for f in files:
             if f.endswith(".py"):
                 local_modules.add(os.path.splitext(f)[0])
-
     imports = re.findall(r'^\s*(?:import|from)\s+([a-zA-Z0-9_\.]+)', code, re.MULTILINE)
     top_level = set(i.split('.')[0] for i in imports if not i.startswith(('__', 'test')))
     return list(top_level - std_libs - local_modules)
@@ -57,47 +54,31 @@ def run_python_test(test_file_path: str):
     test_dir = os.path.dirname(test_file_path)
     with open(test_file_path, encoding="utf-8", errors="replace") as f:
         test_code = f.read()
-
     temp_path = test_file_path + ".temp.py"
     injected_code = f"import sys\nsys.path.insert(0, r'{test_dir}')\n" + test_code
-
     with open(temp_path, "w", encoding="utf-8") as f:
         f.write(injected_code)
-
     result = subprocess.run([sys.executable, temp_path], capture_output=True, text=True)
     os.remove(temp_path)
     return result.stdout + result.stderr
 
 def run_test(language: str, test_path: str):
-    if language == "python":
-        return run_python_test(test_path)
-    else:
-        return f"⚠️ Language '{language}' test execution not implemented."
+    return run_python_test(test_path) if language == "python" else f"⚠️ Language '{language}' not supported."
 
-def get_supported_files_from_local_repo(repo_root):
-    supported_files = []
-    for root, _, files in os.walk(repo_root):
-        if any(skip in root.split(os.sep) for skip in {"agents", "generated_tests"}):
-            continue
-        for file in files:
-            if file.endswith(".py"):
-                supported_files.append(os.path.join(root, file))
-    return supported_files
+def publish_test_result(data: dict):
+    publisher = pubsub_v1.PublisherClient()
+    topic_path = publisher.topic_path(PROJECT_ID, PUBLISH_TOPIC)
+    publisher.publish(topic_path, data=json.dumps(data).encode("utf-8"))
+    print("📤 Published test result to Pub/Sub.")
 
-def clean_non_test_files(folder: str):
-    for file in os.listdir(folder):
-        if file.endswith(".py") and not file.startswith("test_"):
-            os.remove(os.path.join(folder, file))
-
-def generate_test_for_file(source_path: str, output_dir: str, root_dir: str):
+def generate_test_for_file(source_path: str, output_dir: str, root_dir: str, review: dict = None):
     try:
         code = read_local_file(source_path)
         language = detect_language_from_extension(source_path)
 
-        prompt = build_test_generator_prompt(code, language, os.path.basename(source_path))
+        prompt = build_test_generator_prompt(code, language, os.path.basename(source_path), review=review)
         response = model.generate_content(prompt)
         raw = response.text.strip()
-
         if raw.startswith("```"):
             raw = "\n".join(raw.splitlines()[1:-1]).strip()
 
@@ -112,52 +93,60 @@ def generate_test_for_file(source_path: str, output_dir: str, root_dir: str):
 
         print(f"✅ Test generated and saved to: {test_path}")
 
-        deps = []
-        if language == "python":
-            deps = extract_python_dependencies(raw, root_dir)
-            if deps:
-                req_path = os.path.join(output_dir, "requirements.txt")
-                write_requirements(deps, req_path)
-                print(f"📦 Installing dependencies: {deps}")
-                install_dependencies(req_path)
+        deps = extract_python_dependencies(raw, root_dir) if language == "python" else []
+        if deps:
+            req_path = os.path.join(output_dir, "requirements.txt")
+            write_requirements(deps, req_path)
+            install_dependencies(req_path)
 
         shutil.copy2(test_path, root_test_path)
-
-        print("🚀 Running test...")
         result = run_test(language, root_test_path)
 
-        if "Traceback" in result or "AssertionError" in result or "FAIL" in result:
-            print("🧪 Test output:\n" + result)
-        else:
-            print("✅ Test passed with no errors.\n")
+        publish_test_result({
+            "file_path": source_path,
+            "language": language,
+            "test_output": result,
+            "dependencies": deps,
+            "review_summary": review,
+        })
 
         if language == "python" and deps:
-            print("🧹 Cleaning up dependencies...")
             uninstall_dependencies(deps)
 
         os.remove(root_test_path)
 
     except Exception as e:
-        print(f"❌ Error while generating or running test for {source_path}:", e)
+        print(f"❌ Test generation failed for {source_path}: {e}")
 
-if __name__ == "__main__":
+def callback(message):
     try:
+        print("📥 Received message")
+        data = json.loads(message.data.decode("utf-8"))
+        file_path = data["file_path"]
+        review_summary = data.get("review_summary", {})
+
         root_dir = get_git_root()
         output_dir = os.path.join(root_dir, "generated_tests")
-
         os.makedirs(output_dir, exist_ok=True)
 
-        if len(sys.argv) == 2:
-            input_path = sys.argv[1]
-            generate_test_for_file(input_path, output_dir, root_dir)
-        else:
-            files = get_supported_files_from_local_repo(root_dir)
-            print(f"\n⚙️ Generating and running tests on copied files...\n")
-            for f in files:
-                generate_test_for_file(f, output_dir, root_dir)
-
-            clean_non_test_files(output_dir)
-            print(f"\n✅ All tests completed. Only test files remain in {output_dir}")
-
+        generate_test_for_file(file_path, output_dir, root_dir, review=review_summary)
+        message.ack()
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Callback error: {e}")
+        message.nack()
+
+def listen_for_messages():
+    subscriber = pubsub_v1.SubscriberClient()
+    sub_path = subscriber.subscription_path(PROJECT_ID, SUBSCRIPTION_ID)
+    subscriber.subscribe(sub_path, callback=callback)
+    print(f"🔁 Listening on subscription: {SUBSCRIPTION_ID}")
+    try:
+        while True:
+            pass
+    except KeyboardInterrupt:
+        print("🛑 Subscriber stopped.")
+
+if __name__ == "__main__":
+    listen_for_messages()
+# This script listens for messages on a Pub/Sub topic, generates unit tests for the specified source code files,
+# and publishes the results back to another Pub/Sub topic. It handles Python dependencies, runs tests, and cleans up after itself.
