@@ -6,8 +6,8 @@ on:
   pull_request:
 
 jobs:
-  run-agents:
-    name: 🚀 Bootstrap Agents Test Run
+  validate:
+    name: ✅ Validate & Upload
     runs-on: ubuntu-latest
 
     steps:
@@ -43,13 +43,7 @@ jobs:
         echo "VERTEX_PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_LOCATION=us-central1" >> $GITHUB_ENV
 
-    - name: 🔁 Run Bootstrap to Review and Generate Tests
-      run: |
-        python agents/bootstrap.py > test_output.log
-      env:
-        GOOGLE_CLOUD_PROJECT: ${{ env.PROJECT_ID }}
-
-    - name: 📦 Upload generated test artifacts
+    - name: 📦 Upload generated test artifacts (if any)
       if: always()
       uses: actions/upload-artifact@v4
       with:
@@ -62,10 +56,3 @@ jobs:
         python .github/scripts/export_to_bigquery.py
       env:
         GOOGLE_CLOUD_PROJECT: ${{ env.PROJECT_ID }}
-
-    - name: 🔔 Slack Notification
-      if: always()
-      run: |
-        curl -X POST -H 'Content-type: application/json' \
-          --data '{"text":"✅ DevOps Copilot CI finished for commit: ${{ github.sha }}\nBranch: ${{ github.ref_name }}\nResult: ${{ job.status }}"}' \
-          ${{ secrets.SLACK_WEBHOOK }}
