@@ -4,15 +4,17 @@ import json
 import re
 import shutil
 import subprocess
+from datetime import datetime
 from git import Repo
 from vertexai import init
 from vertexai.preview.generative_models import GenerativeModel
-from google.cloud import pubsub_v1
+from google.cloud import pubsub_v1, bigquery
 
 from utils import read_local_file, detect_language_from_extension
 from prompts import build_test_generator_prompt
 from config import PROJECT_ID, LOCATION, PUBLISH_TOPIC, SUBSCRIPTION_ID
 
+# Initialize Gemini and BigQuery
 init(project=PROJECT_ID, location=LOCATION)
 model = GenerativeModel("gemini-2.0-flash-lite")
 
@@ -71,6 +73,23 @@ def publish_test_result(data: dict):
     publisher.publish(topic_path, data=json.dumps(data).encode("utf-8"))
     print("📤 Published test result to Pub/Sub.")
 
+def log_to_bigquery(result: dict):
+    client = bigquery.Client()
+    table_id = f"{PROJECT_ID}.devops_logs.test_results"
+    row = {
+        "file_path": result["file_path"],
+        "language": result["language"],
+        "test_output": result["test_output"][:5000],
+        "deps": ", ".join(result.get("dependencies", [])),
+        "review_summary": json.dumps(result.get("review_summary", {})),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    errors = client.insert_rows_json(table_id, [row])
+    if errors:
+        print("❌ BigQuery insert failed:", errors)
+    else:
+        print("✅ Logged test result to BigQuery.")
+
 def generate_test_for_file(source_path: str, output_dir: str, root_dir: str, review: dict = None):
     try:
         code = read_local_file(source_path)
@@ -102,13 +121,16 @@ def generate_test_for_file(source_path: str, output_dir: str, root_dir: str, rev
         shutil.copy2(test_path, root_test_path)
         result = run_test(language, root_test_path)
 
-        publish_test_result({
+        test_result = {
             "file_path": source_path,
             "language": language,
             "test_output": result,
             "dependencies": deps,
             "review_summary": review,
-        })
+        }
+
+        publish_test_result(test_result)
+        log_to_bigquery(test_result)
 
         if language == "python" and deps:
             uninstall_dependencies(deps)
@@ -148,5 +170,3 @@ def listen_for_messages():
 
 if __name__ == "__main__":
     listen_for_messages()
-# This script listens for messages on a Pub/Sub topic, generates unit tests for the specified source code files,
-# and publishes the results back to another Pub/Sub topic. It handles Python dependencies, runs tests, and cleans up after itself.

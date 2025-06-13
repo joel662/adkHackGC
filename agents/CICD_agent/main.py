@@ -5,26 +5,27 @@ import requests
 from google.cloud import pubsub_v1, bigquery
 from config import PROJECT_ID, CICD_SUBSCRIPTION_ID, GITHUB_TOKEN, GITHUB_REPO, GITHUB_BRANCH
 
-# BigQuery client
+# Initialize BigQuery client
 bq_client = bigquery.Client()
 
-def log_to_bigquery(data: dict):
+def log_to_cicd_table(data: dict):
+    """Log the CI/CD status to the `cicd_events` BigQuery table."""
+    table_id = f"{PROJECT_ID}.devops_logs.cicd_events"
     row = {
         "file_path": data.get("file_path"),
         "language": data.get("language"),
-        "test_output": data.get("test_output", "")[:5000],
-        "deps": ", ".join(data.get("dependencies", [])),
-        "review_summary": json.dumps(data.get("review_summary", {})),
+        "status": "passed" if "FAIL" not in data.get("test_output", "") else "failed",
+        "triggered_by": "Test Generator",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
-    table_id = f"{PROJECT_ID}.devops_logs.test_results"
     errors = bq_client.insert_rows_json(table_id, [row])
     if errors:
-        print("❌ BigQuery insert errors:", errors)
+        print("❌ BigQuery insert errors (CI/CD):", errors)
     else:
-        print("📊 Logged to BigQuery.")
+        print("📊 CI/CD status logged to BigQuery.")
 
 def trigger_github_workflow():
+    """Optionally trigger a GitHub Actions deploy workflow."""
     if not all([GITHUB_TOKEN, GITHUB_REPO]):
         print("⚠️ GitHub token or repo not set. Skipping workflow trigger.")
         return
@@ -45,21 +46,25 @@ def trigger_github_workflow():
     if response.status_code == 204:
         print("🚀 GitHub Actions workflow triggered.")
     else:
-        print("❌ GitHub Actions failed:", response.text)
+        print("❌ GitHub Actions trigger failed:", response.text)
 
 def process_test_result(data: dict):
     print("\n🧩 CI/CD Agent: Received Test Result")
-    print("📄 File:", data.get("file_path"))
-    print("🌐 Language:", data.get("language"))
+    print(f"📄 File: {data.get('file_path')}")
+    print(f"🌐 Language: {data.get('language')}")
     print("🧪 Test Output:\n", data.get("test_output"))
 
-    log_to_bigquery(data)
+    log_to_cicd_table(data)
     trigger_github_workflow()
-    print("✅ CI/CD process completed.\n")
+
+    if "FAIL" in data.get("test_output", "") or "Traceback" in data.get("test_output", ""):
+        print("⚠️ Detected test failure or error!")
+    else:
+        print("✅ Test passed successfully.")
 
 def callback(message):
     try:
-        print("📥 New message received")
+        print("📥 New message received from Pub/Sub")
         data = json.loads(message.data.decode("utf-8"))
         process_test_result(data)
         message.ack()
@@ -80,5 +85,5 @@ def listen_for_test_results():
         print("🛑 CI/CD Agent stopped.")
 
 if __name__ == "__main__":
-    listen_for_test_results()
     print("🚀 Starting CI/CD Agent...")
+    listen_for_test_results()
