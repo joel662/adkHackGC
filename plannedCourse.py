@@ -50,7 +50,6 @@ for row_idx in range(num_rows):
 print("Processing specific cells...")
 for cell1, cell2 in specific_cells:
     row1, col1 = int(cell1[1:]) - 1, ord(cell1[0]) - ord('A')
-    row2, col2 = int(cell2[1:]) - 1, ord(cell2[0]) - ord('A')
     
     cell_value1 = audit_sheet_df.iloc[row1, col1]
     cell_value2 = audit_sheet_df.iloc[row2, col2]
