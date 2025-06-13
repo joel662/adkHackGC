@@ -13,6 +13,8 @@ jobs:
     steps:
     - name: 📥 Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # ✅ Required so git diff origin/main works in PRs
 
     - name: 🐍 Set up Python
       uses: actions/setup-python@v5
@@ -46,11 +48,12 @@ jobs:
     - name: 🧠 Run Code Reviewer Agent on changed source files
       run: |
         echo "🔍 Detecting changed code files..."
-        git fetch origin main
-        git diff --name-only origin/main...HEAD > changed.txt
+        git fetch origin main || true
+        git diff --name-only origin/main...HEAD > changed.txt || touch changed.txt
 
         grep -E '\.(py|js|ts|java|cpp|c|go|sh|sql|jsx|tsx)$' changed.txt || true | while read file; do
           echo "📄 Reviewing $file"
           python agents/code-review-agent/main.py "$file"
         done
+
         echo "✅ Code review completed for changed files."
