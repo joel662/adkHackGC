@@ -47,12 +47,6 @@ for row_idx in range(num_rows):
                     credits = 0 if status == "To be Registered" else int(credits)
                     course_data.append([term, course_code, status, credits, "Predicted Term: " + str(term) if term else ""])
 
-# Manually add specific cells
-specific_cells = [
-    ("G30", "H30"),
-    ("E34", "F34")
-]
-
 print("Processing specific cells...")
 for cell1, cell2 in specific_cells:
     row1, col1 = int(cell1[1:]) - 1, ord(cell1[0]) - ord('A')
