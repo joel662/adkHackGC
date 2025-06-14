@@ -14,20 +14,17 @@ jobs:
     - name: 📅 Checkout repository
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Ensures git diff origin/main works in PRs
+        fetch-depth: 0
 
     - name: 🐍 Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    - name: 📦 Install global dependencies
+    - name: 📦 Install dependencies
       run: |
         pip install --upgrade pip
         pip install GitPython google-cloud-aiplatform google-cloud-pubsub google-cloud-bigquery python-dotenv
-
-    - name: 📦 Install agent requirements
-      run: |
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         if [ -f agents/code-review-agent/requirements.txt ]; then pip install -r agents/code-review-agent/requirements.txt; fi
         if [ -f agents/Test_generator/requirements.txt ]; then pip install -r agents/Test_generator/requirements.txt; fi
@@ -53,7 +50,7 @@ jobs:
           python agents/code-review-agent/main.py "$file"
         done
 
-    - name: ⌛ Wait for agents to complete
+    - name: ⌛ Wait for Test Generator and CI/CD Agents
       run: sleep 15
 
     - name: 📊 Query recent test results from BigQuery
@@ -83,8 +80,9 @@ jobs:
       with:
         name: generated-tests
         path: generated_tests
+        if-no-files-found: warn
 
-    - name: 🔒 Fail workflow if any test failed
+    - name: 🔒 Fail workflow if tests failed
       if: steps.testcheck.outputs.fail == 'true'
       run: |
         echo "🚨 Failing workflow due to detected test failures"
