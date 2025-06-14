@@ -60,12 +60,12 @@ jobs:
 
     - name: 🌟 Run CI/CD Agent Summary
       run: |
-        python agents/cicd_agent/main.py &
+        python agents/CICD_agent/main.py &
         sleep 5
 
     - name: 🔒 Run Security Agent Summary
       run: |
-        python agents/security_agent/main.py &
+        python agents/SecurityAgent/main.py &
         sleep 5
 
     - name: 🕒 Wait for agent messages
@@ -99,13 +99,6 @@ jobs:
         name: generated-tests
         path: generated_tests
         if-no-files-found: warn
-    
-    - name: 📊 Clean up BigQuery logs
-      if: always()
-      run: |
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\` WHERE TRUE"
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\` WHERE TRUE"
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\` WHERE TRUE"
 
     - name: 🔐 Fail workflow if tests failed
       if: steps.testcheck.outputs.fail == 'true'
@@ -113,4 +106,9 @@ jobs:
         echo "🚨 Failing workflow due to detected test failures"
         exit 1
 
-    
+    - name: 📊 Clean up BigQuery logs
+      if: always()
+      run: |
+        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\` WHERE TRUE"
+        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\` WHERE TRUE"
+        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\` WHERE TRUE"
