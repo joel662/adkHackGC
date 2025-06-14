@@ -14,7 +14,7 @@ jobs:
     - name: 📅 Checkout repository
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0
+        fetch-depth: 0  # Ensures git diff origin/main works in PRs
 
     - name: 🐍 Set up Python
       uses: actions/setup-python@v5
@@ -54,18 +54,21 @@ jobs:
         done
 
     - name: ⌛ Wait for agents to complete
-      run: sleep 15  # Allow time for Test Generator and CI/CD agents to process
+      run: sleep 15
 
-
-    - name: 📊 Check recent test results from BigQuery
+    - name: 📊 Query recent test results from BigQuery
       run: |
-        bq query --use_legacy_sql=false \
-        "SELECT file_path, language, test_output, llm_summary FROM `${{ secrets.GCP_PROJECT }}.devops_logs.test_results` ORDER BY timestamp DESC LIMIT 3" > test_results.txt
+        bq query --use_legacy_sql=false "
+          SELECT file_path, language, test_output, llm_summary
+          FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\`
+          ORDER BY timestamp DESC
+          LIMIT 3
+        " > test_results.txt
 
-    - name: 🔧 Show summary from BigQuery
+    - name: 🔧 Show test result summary
       run: cat test_results.txt
 
-    - name: 🔍 Check for test failures in output
+    - name: 🔍 Detect test failures
       id: testcheck
       run: |
         if grep -q FAIL test_results.txt || grep -q Traceback test_results.txt || grep -q AssertionError test_results.txt; then
@@ -80,8 +83,9 @@ jobs:
       with:
         name: generated-tests
         path: generated_tests
-    - name: 🔒 Fail workflow if tests failed
+
+    - name: 🔒 Fail workflow if any test failed
       if: steps.testcheck.outputs.fail == 'true'
       run: |
-        echo "🚨 Failing job due to test failures"
+        echo "🚨 Failing workflow due to detected test failures"
         exit 1
