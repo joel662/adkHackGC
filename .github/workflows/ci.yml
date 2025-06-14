@@ -60,12 +60,12 @@ jobs:
 
     - name: 🌟 Run CI/CD Agent Summary
       run: |
-        python agents/cicd_agent/main.py &
+        python agents/CICD_agent/main.py &
         sleep 5
 
     - name: 🔒 Run Security Agent Summary
       run: |
-        python agents/security_agent/main.py &
+        python agents/SecurityAgent/main.py &
         sleep 5
 
     - name: 🕒 Wait for agent messages
