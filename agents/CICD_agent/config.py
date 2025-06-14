@@ -10,9 +10,9 @@ LOCATION = os.getenv("VERTEX_LOCATION") or os.environ.get("VERTEX_LOCATION") or 
 CICD_SUBSCRIPTION_ID = os.getenv("CICD_SUBSCRIPTION_ID") or os.environ.get("CICD_SUBSCRIPTION_ID", "cicd_listener_sub")
 
 # Optional GitHub workflow info
-GITHUB_TOKEN = os.getenv("MY_PAT_TOKEN")
-GITHUB_REPO = os.getenv("GITHUB_REPO")
-GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
+GITHUB_TOKEN = os.getenv("MY_PAT_TOKEN") or os.environ.get("MY_PAT_TOKEN")
+GITHUB_REPO = os.getenv("GITHUB_REPO") or os.environ.get("GITHUB_REPO")
+GITHUB_BRANCH = os.getenv("GITHUB_BRANCH") or os.environ.get("GITHUB_BRANCH", "main")
 
 if not PROJECT_ID:
     raise EnvironmentError("❌ PROJECT_ID is not set. Check your .env.local file.")
