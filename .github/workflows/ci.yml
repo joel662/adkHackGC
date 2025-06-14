@@ -1,4 +1,4 @@
-name: CI - DevOps Agents
+name: CI - DevOps Copilot Agents
 
 on:
   push:
