@@ -3,9 +3,10 @@ from dotenv import load_dotenv
 
 # Load shared .env.local from root
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '.env.local'))
-load_dotenv(dotenv_path=env_path)
+if os.path.exists(env_path):
+    load_dotenv(dotenv_path=env_path)
 
-PROJECT_ID = os.getenv("VERTEX_PROJECT_ID")
+PROJECT_ID = os.getenv("VERTEX_PROJECT_ID") or os.environ.get("VERTEX_PROJECT_ID") or os.environ.get("PROJECT_ID")
 LOCATION = os.getenv("VERTEX_LOCATION", "us-central1")
 SECURITY_SUBSCRIPTION_ID = os.getenv("SECURITY_SUBSCRIPTION_ID", "security_agent_sub")
 
