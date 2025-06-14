@@ -2,6 +2,7 @@ import os
 import json
 from datetime import datetime, timezone
 import requests
+from concurrent.futures import TimeoutError
 from google.cloud import pubsub_v1
 from config import PROJECT_ID, CICD_SUBSCRIPTION_ID, GITHUB_TOKEN, GITHUB_REPO, GITHUB_BRANCH
 from utils import summarize_test_result
@@ -84,17 +85,17 @@ def callback(message):
         print("❌ Failed to process message:", e)
         message.nack()
 
-def listen_for_test_results():
+def listen_for_test_results(timeout_seconds=20):
     subscriber = pubsub_v1.SubscriberClient()
     subscription_path = subscriber.subscription_path(PROJECT_ID, CICD_SUBSCRIPTION_ID)
-    subscriber.subscribe(subscription_path, callback=callback)
+    future = subscriber.subscribe(subscription_path, callback=callback)
     print(f"🔁 Listening for test results on '{CICD_SUBSCRIPTION_ID}'...")
 
     try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        print("🛑 CI/CD Agent stopped.")
+        future.result(timeout=timeout_seconds)
+    except TimeoutError:
+        print("⏳ CI/CD Agent timeout reached. Exiting.")
+        future.cancel()
 
 if __name__ == "__main__":
     print("🚀 Starting CI/CD Agent...")

@@ -1,4 +1,6 @@
 import json
+import time
+from concurrent.futures import TimeoutError
 from google.cloud import pubsub_v1
 from scanner import scan_for_secrets_and_vulnerabilities
 from config import PROJECT_ID, SECURITY_SUBSCRIPTION_ID
@@ -9,6 +11,8 @@ def callback(message):
     try:
         print("📥 Security Agent received message")
         data = json.loads(message.data.decode("utf-8"))
+        print("🔍 Payload:", json.dumps(data, indent=2))
+
         file_path = data.get("file_path")
         language = data.get("language")
         test_output = data.get("test_output", "")
@@ -36,16 +40,18 @@ def callback(message):
         print("❌ Error in Security Agent:", e)
         message.nack()
 
-def listen():
+def listen(timeout_seconds=20):
     subscriber = pubsub_v1.SubscriberClient()
     subscription_path = subscriber.subscription_path(PROJECT_ID, SECURITY_SUBSCRIPTION_ID)
-    subscriber.subscribe(subscription_path, callback=callback)
-    print(f"🛡️ Listening on subscription: {SECURITY_SUBSCRIPTION_ID}")
+    future = subscriber.subscribe(subscription_path, callback=callback)
+    print(f"🛡️ Listening on subscription: {SECURITY_SUBSCRIPTION_ID}...")
+
     try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        print("🛑 Security Agent stopped.")
+        # Properly handle the timeout with pubsub's exception
+        future.result(timeout=timeout_seconds)
+    except TimeoutError:
+        print("⏳ Timeout reached. Shutting down Security Agent.")
+        future.cancel()
 
 if __name__ == "__main__":
     listen()

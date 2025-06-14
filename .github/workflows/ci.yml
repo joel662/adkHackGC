@@ -1,4 +1,4 @@
-name: CI - DevOps Copilot Agents
+name: CI - AutoDevOps Agents
 
 on:
   push:
@@ -25,11 +25,7 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install GitPython google-cloud-aiplatform google-cloud-pubsub google-cloud-bigquery python-dotenv
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ -f agents/code-review-agent/requirements.txt ]; then pip install -r agents/code-review-agent/requirements.txt; fi
-        if [ -f agents/Test_generator/requirements.txt ]; then pip install -r agents/Test_generator/requirements.txt; fi
-        if [ -f agents/cicd_agent/requirements.txt ]; then pip install -r agents/cicd_agent/requirements.txt; fi
-        if [ -f agents/security_agent/requirements.txt ]; then pip install -r agents/security_agent/requirements.txt; fi
+        for path in agents/*/requirements.txt; do pip install -r "$path"; done
 
     - name: 🔐 Authenticate with Google Cloud
       uses: google-github-actions/auth@v2
@@ -58,30 +54,49 @@ jobs:
           python agents/Test_generator/main.py "$file"
         done
 
-    - name: 🌟 Run CI/CD Agent Summary
+    - name: 🌟 Run CI/CD Agent
       run: |
-        python agents/CICD_agent/main.py &
-        sleep 5
+        python agents/cicd_agent/main.py || true
 
-    - name: 🔒 Run Security Agent Summary
+    - name: 🔒 Run Security Agent
       run: |
-        python agents/SecurityAgent/main.py &
-        sleep 5
+        python agents/security_agent/main.py || true
 
     - name: 🕒 Wait for agent messages
-      run: sleep 15
+      run: sleep 20
 
     - name: 📊 Query recent test results from BigQuery
       run: |
         bq query --use_legacy_sql=false "
           SELECT file_path, language, test_output, llm_summary
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\`
-          ORDER BY timestamp DESC
-          LIMIT 3
+          ORDER BY timestamp DESC LIMIT 3
         " > test_results.txt
 
-    - name: 🔧 Show test result summary
-      run: cat test_results.txt
+    - name: 📊 Query recent security insights from BigQuery
+      run: |
+        bq query --use_legacy_sql=false "
+          SELECT file_path, language, vulnerabilities, llm_explanation
+          FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\`
+          ORDER BY timestamp DESC LIMIT 3
+        " > security_insights.txt
+
+    - name: 📊 Query recent CI/CD events from BigQuery
+      run: |
+        bq query --use_legacy_sql=false "
+          SELECT file_path, language, status, triggered_by
+          FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\`
+          ORDER BY timestamp DESC LIMIT 3
+        " > cicd_summary.txt
+
+    - name: 📄 Show summaries from BigQuery
+      run: |
+        echo "--- 🧪 Test Results ---"
+        cat test_results.txt
+        echo "--- 🔐 Security Insights ---"
+        cat security_insights.txt
+        echo "--- 🌟 CI/CD Events ---"
+        cat cicd_summary.txt
 
     - name: 🔍 Detect test failures
       id: testcheck
@@ -106,7 +121,7 @@ jobs:
         echo "🚨 Failing workflow due to detected test failures"
         exit 1
 
-    - name: 📊 Clean up BigQuery logs
+    - name: 🧹 Clean up BigQuery logs
       if: always()
       run: |
         bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\` WHERE TRUE"

@@ -169,4 +169,11 @@ def listen_for_messages():
         print("🛑 Subscriber stopped.")
 
 if __name__ == "__main__":
-    listen_for_messages()
+    if len(sys.argv) > 1:
+        input_file = sys.argv[1]
+        root_dir = get_git_root()
+        output_dir = os.path.join(os.path.dirname(__file__), "..", "..", "generated_tests")
+        os.makedirs(output_dir, exist_ok=True)
+        generate_test_for_file(input_file, output_dir, root_dir)
+    else:
+        listen_for_messages()
