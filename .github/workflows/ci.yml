@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 📅 Checkout repository
+    - name: 🕕️ Checkout repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
@@ -29,6 +29,7 @@ jobs:
         if [ -f agents/code-review-agent/requirements.txt ]; then pip install -r agents/code-review-agent/requirements.txt; fi
         if [ -f agents/Test_generator/requirements.txt ]; then pip install -r agents/Test_generator/requirements.txt; fi
         if [ -f agents/cicd_agent/requirements.txt ]; then pip install -r agents/cicd_agent/requirements.txt; fi
+        if [ -f agents/security_agent/requirements.txt ]; then pip install -r agents/security_agent/requirements.txt; fi
 
     - name: 🔐 Authenticate with Google Cloud
       uses: google-github-actions/auth@v2
@@ -41,7 +42,7 @@ jobs:
         echo "VERTEX_PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_LOCATION=us-central1" >> $GITHUB_ENV
 
-    - name: 🧠 Run Code Reviewer Agent on changed source files
+    - name: 🧠 Run Code Reviewer Agent
       run: |
         git fetch origin main || true
         git diff --name-only origin/main...HEAD > changed.txt || touch changed.txt
@@ -50,7 +51,24 @@ jobs:
           python agents/code-review-agent/main.py "$file"
         done
 
-    - name: ⌛ Wait for Test Generator and CI/CD Agents
+    - name: 🧪 Run Test Generator Agent
+      run: |
+        grep -E '\.(py|js|ts|java|cpp|c|go|sh|sql|jsx|tsx)$' changed.txt || true | while read file; do
+          echo "🧪 Generating test for $file"
+          python agents/Test_generator/main.py "$file"
+        done
+
+    - name: 🌟 Run CI/CD Agent Summary
+      run: |
+        python agents/cicd_agent/main.py &
+        sleep 5
+
+    - name: 🔒 Run Security Agent Summary
+      run: |
+        python agents/security_agent/main.py &
+        sleep 5
+
+    - name: 🕒 Wait for agent messages
       run: sleep 15
 
     - name: 📊 Query recent test results from BigQuery
@@ -81,9 +99,18 @@ jobs:
         name: generated-tests
         path: generated_tests
         if-no-files-found: warn
+    
+    - name: 📊 Clean up BigQuery logs
+      if: always()
+      run: |
+        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\` WHERE TRUE"
+        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\` WHERE TRUE"
+        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\` WHERE TRUE"
 
-    - name: 🔒 Fail workflow if tests failed
+    - name: 🔐 Fail workflow if tests failed
       if: steps.testcheck.outputs.fail == 'true'
       run: |
         echo "🚨 Failing workflow due to detected test failures"
         exit 1
+
+    
