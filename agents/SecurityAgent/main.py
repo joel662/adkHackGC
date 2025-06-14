@@ -1,7 +1,9 @@
 import json
 from google.cloud import pubsub_v1
 from scanner import scan_for_secrets_and_vulnerabilities
-from config import PROJECT_ID, SECURITY_SUBSCRIPTION_ID, log_to_bigquery
+from config import PROJECT_ID, SECURITY_SUBSCRIPTION_ID
+from utils import explain_security_findings
+from logger import log_to_bigquery  # moved here for cleaner config separation
 
 def callback(message):
     try:
@@ -17,10 +19,16 @@ def callback(message):
 
         if findings:
             print("⚠️ Security issues found:", findings)
+
+            # 🔍 Get LLM explanation for context
+            explanation = explain_security_findings(findings)
+
+            # 📝 Log to BigQuery
             log_to_bigquery({
                 "file_path": file_path,
                 "language": language,
-                "vulnerabilities": findings
+                "vulnerabilities": findings,
+                "llm_explanation": explanation
             })
 
         message.ack()

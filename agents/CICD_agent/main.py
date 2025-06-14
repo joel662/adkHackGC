@@ -4,25 +4,8 @@ from datetime import datetime, timezone
 import requests
 from google.cloud import pubsub_v1, bigquery
 from config import PROJECT_ID, CICD_SUBSCRIPTION_ID, GITHUB_TOKEN, GITHUB_REPO, GITHUB_BRANCH
-
-# Initialize BigQuery client
-bq_client = bigquery.Client()
-
-def log_to_cicd_table(data: dict):
-    """Log the CI/CD status to the `cicd_events` BigQuery table."""
-    table_id = f"{PROJECT_ID}.devops_logs.cicd_events"
-    row = {
-        "file_path": data.get("file_path"),
-        "language": data.get("language"),
-        "status": "passed" if "FAIL" not in data.get("test_output", "") else "failed",
-        "triggered_by": "Test Generator",
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
-    errors = bq_client.insert_rows_json(table_id, [row])
-    if errors:
-        print("❌ BigQuery insert errors (CI/CD):", errors)
-    else:
-        print("📊 CI/CD status logged to BigQuery.")
+from utils import summarize_test_result  # LLM-based summary
+from logger import log_test_result, log_cicd_event  # split logs for clarity
 
 def trigger_github_workflow():
     """Optionally trigger a GitHub Actions deploy workflow."""
@@ -45,22 +28,47 @@ def trigger_github_workflow():
     response = requests.post(url, headers=headers, json=payload)
     if response.status_code == 204:
         print("🚀 GitHub Actions workflow triggered.")
+        return True
     else:
-        print("❌ GitHub Actions trigger failed:", response.text)
+        print("❌ GitHub Actions failed:", response.text)
+        return False
 
 def process_test_result(data: dict):
     print("\n🧩 CI/CD Agent: Received Test Result")
-    print(f"📄 File: {data.get('file_path')}")
-    print(f"🌐 Language: {data.get('language')}")
-    print("🧪 Test Output:\n", data.get("test_output"))
+    file_path = data.get("file_path")
+    language = data.get("language")
+    test_output = data.get("test_output", "")
 
-    log_to_cicd_table(data)
-    trigger_github_workflow()
+    print(f"📄 File: {file_path}")
+    print(f"🌐 Language: {language}")
+    print("🧪 Test Output:\n", test_output[:1000], "\n...")
 
-    if "FAIL" in data.get("test_output", "") or "Traceback" in data.get("test_output", ""):
-        print("⚠️ Detected test failure or error!")
-    else:
-        print("✅ Test passed successfully.")
+    passed = "FAIL" not in test_output and "Traceback" not in test_output and "Error" not in test_output
+    status = "PASSED" if passed else "FAILED"
+
+    # 🧠 Summarize test result using Gemini
+    summary = summarize_test_result(test_output, passed)
+
+    # 📊 Log detailed test result to BigQuery
+    log_test_result({
+        "file_path": file_path,
+        "language": language,
+        "test_output": test_output,
+        "dependencies": data.get("dependencies", []),
+        "review_summary": data.get("review_summary", {}),
+        "summary": summary,
+    })
+
+    # 📈 Log deployment trigger event
+    triggered = trigger_github_workflow()
+    log_cicd_event({
+        "file_path": file_path,
+        "language": language,
+        "status": status,
+        "triggered_by": "CI/CD Agent" if triggered else "Manual Review",
+    })
+
+    print(f"✅ CI/CD process {status} and logged successfully.\n")
 
 def callback(message):
     try:
@@ -87,3 +95,4 @@ def listen_for_test_results():
 if __name__ == "__main__":
     print("🚀 Starting CI/CD Agent...")
     listen_for_test_results()
+
