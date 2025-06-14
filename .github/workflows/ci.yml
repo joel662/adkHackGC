@@ -56,11 +56,11 @@ jobs:
 
     - name: 🌟 Run CI/CD Agent
       run: |
-        python agents/cicd_agent/main.py || true
+        python agents/CICD_agent/main.py || true
 
     - name: 🔒 Run Security Agent
       run: |
-        python agents/security_agent/main.py || true
+        python agents/SecurityAgent/main.py || true
 
     - name: 🕒 Wait for agent messages
       run: sleep 20
