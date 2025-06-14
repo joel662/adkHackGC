@@ -6,6 +6,8 @@ from google.cloud import pubsub_v1, bigquery
 from config import PROJECT_ID, CICD_SUBSCRIPTION_ID, GITHUB_TOKEN, GITHUB_REPO, GITHUB_BRANCH
 from utils import summarize_test_result  # LLM-based summary
 from logger import log_test_result, log_cicd_event  # split logs for clarity
+from utils import summarize_test_result  # LLM-based summary
+from logger import log_test_result, log_cicd_event  # split logs for clarity
 
 def trigger_github_workflow():
     """Optionally trigger a GitHub Actions deploy workflow."""
@@ -29,8 +31,10 @@ def trigger_github_workflow():
     if response.status_code == 204:
         print("🚀 GitHub Actions workflow triggered.")
         return True
+        return True
     else:
         print("❌ GitHub Actions failed:", response.text)
+        return False
         return False
 
 def process_test_result(data: dict):
@@ -48,7 +52,40 @@ def process_test_result(data: dict):
 
     # 🧠 Summarize test result using Gemini
     summary = summarize_test_result(test_output, passed)
+    file_path = data.get("file_path")
+    language = data.get("language")
+    test_output = data.get("test_output", "")
 
+    print(f"📄 File: {file_path}")
+    print(f"🌐 Language: {language}")
+    print("🧪 Test Output:\n", test_output[:1000], "\n...")
+
+    passed = "FAIL" not in test_output and "Traceback" not in test_output and "Error" not in test_output
+    status = "PASSED" if passed else "FAILED"
+
+    # 🧠 Summarize test result using Gemini
+    summary = summarize_test_result(test_output, passed)
+
+    # 📊 Log detailed test result to BigQuery
+    log_test_result({
+        "file_path": file_path,
+        "language": language,
+        "test_output": test_output,
+        "dependencies": data.get("dependencies", []),
+        "review_summary": data.get("review_summary", {}),
+        "summary": summary,
+    })
+
+    # 📈 Log deployment trigger event
+    triggered = trigger_github_workflow()
+    log_cicd_event({
+        "file_path": file_path,
+        "language": language,
+        "status": status,
+        "triggered_by": "CI/CD Agent" if triggered else "Manual Review",
+    })
+
+    print(f"✅ CI/CD process {status} and logged successfully.\n")
     # 📊 Log detailed test result to BigQuery
     log_test_result({
         "file_path": file_path,
