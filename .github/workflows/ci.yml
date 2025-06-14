@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 🕕️ Checkout repository
+    - name: 🕒 Checkout repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
@@ -20,6 +20,9 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+
+    - name: 📆 Set CI run identifier
+      run: echo "RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
 
     - name: 📦 Install dependencies
       run: |
@@ -38,7 +41,7 @@ jobs:
         echo "VERTEX_PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_LOCATION=us-central1" >> $GITHUB_ENV
 
-    - name: 🧠 Run Code Reviewer Agent
+    - name: 🧐 Run Code Reviewer Agent
       run: |
         git fetch origin main || true
         git diff --name-only origin/main...HEAD > changed.txt || touch changed.txt
@@ -47,14 +50,14 @@ jobs:
           python agents/code-review-agent/main.py "$file"
         done
 
-    - name: 🧪 Run Test Generator Agent
+    - name: 🦢 Run Test Generator Agent
       run: |
         grep -E '\.(py|js|ts|java|cpp|c|go|sh|sql|jsx|tsx)$' changed.txt || true | while read file; do
-          echo "🧪 Generating test for $file"
+          echo "🦢 Generating test for $file"
           python agents/Test_generator/main.py "$file"
         done
 
-    - name: 🌟 Run CI/CD Agent
+    - name: ✨ Run CI/CD Agent
       run: |
         python agents/CICD_agent/main.py || true
 
@@ -62,7 +65,7 @@ jobs:
       run: |
         python agents/SecurityAgent/main.py || true
 
-    - name: 🕒 Wait for agent messages
+    - name: ⏲️ Wait for agent messages
       run: sleep 20
 
     - name: 📊 Query recent test results from BigQuery
@@ -70,6 +73,7 @@ jobs:
         bq query --use_legacy_sql=false "
           SELECT file_path, language, test_output, llm_summary
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\`
+          WHERE run_id = '${{ github.run_id }}'
           ORDER BY timestamp DESC LIMIT 3
         " > test_results.txt
 
@@ -78,6 +82,7 @@ jobs:
         bq query --use_legacy_sql=false "
           SELECT file_path, language, vulnerabilities, llm_explanation
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\`
+          WHERE run_id = '${{ github.run_id }}'
           ORDER BY timestamp DESC LIMIT 3
         " > security_insights.txt
 
@@ -86,16 +91,17 @@ jobs:
         bq query --use_legacy_sql=false "
           SELECT file_path, language, status, triggered_by
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\`
+          WHERE run_id = '${{ github.run_id }}'
           ORDER BY timestamp DESC LIMIT 3
         " > cicd_summary.txt
 
     - name: 📄 Show summaries from BigQuery
       run: |
-        echo "--- 🧪 Test Results ---"
+        echo "--- 🦢 Test Results ---"
         cat test_results.txt
         echo "--- 🔐 Security Insights ---"
         cat security_insights.txt
-        echo "--- 🌟 CI/CD Events ---"
+        echo "--- ✨ CI/CD Events ---"
         cat cicd_summary.txt
 
     - name: 🔍 Detect test failures
@@ -120,10 +126,3 @@ jobs:
       run: |
         echo "🚨 Failing workflow due to detected test failures"
         exit 1
-
-    - name: 🧹 Clean up BigQuery logs
-      if: always()
-      run: |
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\` WHERE TRUE"
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\` WHERE TRUE"
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\` WHERE TRUE"
