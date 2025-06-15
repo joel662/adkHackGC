@@ -19,7 +19,7 @@ def main():
         try:
             response = model.generate_content(prompt)
             print("Gemini:", response.text)
-        except Exception as e:
+        except Exception as
 
 
 if __name__ == "__main__":
