@@ -7,7 +7,7 @@ load_dotenv(dotenv_path=env_path)
 
 PROJECT_ID = os.getenv("VERTEX_PROJECT_ID")
 LOCATION = os.getenv("VERTEX_LOCATION")
-PUBSUB_TOPIC = os.getenv("PUBSUB_TOPIC")  # Already used in Code Reviewer Agent
+PUBLISH_TOPIC = os.getenv("PUBLISH_TOPIC", "test_generation_done")
 PUBLISH_TOPIC = os.getenv("TEST_GEN_OUTPUT_TOPIC", "test_generation_done")
 SUBSCRIPTION_ID = os.getenv("TEST_GEN_SUBSCRIPTION_ID", "test_generator_sub")
 
