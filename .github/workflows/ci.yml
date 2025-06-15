@@ -37,6 +37,11 @@ jobs:
         echo "PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_LOCATION=us-central1" >> $GITHUB_ENV
+        echo "PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
+        echo "VERTEX_PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
+        echo "VERTEX_LOCATION=us-central1" >> $GITHUB_ENV
+        echo "TEST_GEN_OUTPUT_TOPIC=test_generation_done" >> $GITHUB_ENV
+        echo "TEST_GEN_SUBSCRIPTION_ID=test_generator_sub" >> $GITHUB_ENV
 
     - name: 🧠 Run Code Reviewer Agent
       run: |
