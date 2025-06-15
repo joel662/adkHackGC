@@ -4,6 +4,7 @@ def add(a, b):
 
 def divide(a, b):
     """Divides a by b, raises error if b is zero."""
+    
     return a / b
 
 def greet(name):

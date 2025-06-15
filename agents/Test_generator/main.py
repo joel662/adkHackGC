@@ -98,6 +98,7 @@ def generate_test_for_file(source_path: str, output_dir: str, root_dir: str, rev
         prompt = build_test_generator_prompt(code, language, os.path.basename(source_path), review=review)
         response = model.generate_content(prompt)
         raw = response.text.strip()
+
         if raw.startswith("```"):
             raw = "\n".join(raw.splitlines()[1:-1]).strip()
 
@@ -106,6 +107,20 @@ def generate_test_for_file(source_path: str, output_dir: str, root_dir: str, rev
         test_filename = f"test_{os.path.basename(source_path)}"
         test_path = os.path.join(output_dir, test_filename)
         root_test_path = os.path.join(root_dir, test_filename)
+
+        # ✅ Handle empty output early
+        if not raw.strip():
+            print(f"⚠️ Gemini returned empty test for {source_path}")
+            test_result = {
+                "file_path": source_path,
+                "language": language,
+                "test_output": "[GENERATION FAILED] No test code produced.",
+                "dependencies": [],
+                "review_summary": review or {},
+            }
+            publish_test_result(test_result)
+            log_to_bigquery(test_result)
+            return
 
         with open(test_path, "w", encoding="utf-8") as f:
             f.write(raw)
@@ -126,7 +141,7 @@ def generate_test_for_file(source_path: str, output_dir: str, root_dir: str, rev
             "language": language,
             "test_output": result,
             "dependencies": deps,
-            "review_summary": review,
+            "review_summary": review or {},
         }
 
         publish_test_result(test_result)
@@ -139,6 +154,15 @@ def generate_test_for_file(source_path: str, output_dir: str, root_dir: str, rev
 
     except Exception as e:
         print(f"❌ Test generation failed for {source_path}: {e}")
+        test_result = {
+            "file_path": source_path,
+            "language": "unknown",
+            "test_output": f"[ERROR] {str(e)}",
+            "dependencies": [],
+            "review_summary": review or {},
+        }
+        publish_test_result(test_result)
+        log_to_bigquery(test_result)
 
 def callback(message):
     try:
