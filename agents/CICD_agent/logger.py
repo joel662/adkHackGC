@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from os import getenv
 from google.cloud import bigquery
 from config import PROJECT_ID
 
@@ -8,6 +9,7 @@ bq_client = bigquery.Client()
 def log_test_result(data: dict):
     """Logs a detailed test result with optional LLM summary."""
     table_id = f"{PROJECT_ID}.devops_logs.test_results"
+    run_id = getenv("RUN_ID", "manual") 
     row = {
         "file_path": data.get("file_path"),
         "language": data.get("language"),
@@ -15,7 +17,8 @@ def log_test_result(data: dict):
         "deps": ", ".join(data.get("dependencies", [])),
         "review_summary": json.dumps(data.get("review_summary", {})),
         "llm_summary": data.get("summary", ""),
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "run_id": run_id
     }
 
     errors = bq_client.insert_rows_json(table_id, [row])
@@ -27,12 +30,14 @@ def log_test_result(data: dict):
 def log_cicd_event(meta: dict):
     """Logs a high-level CI/CD event for tracking deployments or workflows."""
     table_id = f"{PROJECT_ID}.devops_logs.cicd_events"
+    run_id = getenv("RUN_ID", "manual") 
     row = {
         "file_path": meta.get("file_path"),
         "language": meta.get("language"),
         "status": meta.get("status"),
         "triggered_by": meta.get("triggered_by", "Unknown"),
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "run_id": run_id,
     }
 
     errors = bq_client.insert_rows_json(table_id, [row])
