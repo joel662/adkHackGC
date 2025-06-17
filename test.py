@@ -16,7 +16,6 @@ def main():
         if prompt.lower() == "exit":
             break
 
-        try:
             response = model.generate_content(prompt)
             print("Gemini:", response.text)
         except Exception as e:
