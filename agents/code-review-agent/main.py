@@ -76,10 +76,13 @@ def review_all_code_in_repo(repo_root: str):
 
 if __name__ == "__main__":
     try:
-        
-        repo_root = get_git_root()
-        review_all_code_in_repo(repo_root)
-        print("✅ Code review completed for all supported files in the repository.")
+        if len(sys.argv) > 1:
+            review_code(sys.argv[1])
+        else:
+            repo_root = get_git_root()
+            review_all_code_in_repo(repo_root)
+        print("✅ Code review completed.")
     except Exception as e:
         print(e)
-        print("Please ensure you are running this script inside a Git repository.")
+        print("❌ Please ensure you are running this script inside a Git repository.")
+
