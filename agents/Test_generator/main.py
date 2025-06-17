@@ -90,7 +90,8 @@ def log_to_bigquery(result: dict):
     else:
         print("✅ Logged test result to BigQuery.")
 
-def generate_test_for_file(source_path: str, output_dir: str, root_dir: str, review: dict = None):
+def generate_test_for_file(source_path: str, output_dir: str, root_dir: str, review: dict = None, run_id: str = "manual"):
+
     try:
         code = read_local_file(source_path)
         language = detect_language_from_extension(source_path)

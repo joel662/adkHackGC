@@ -7,7 +7,7 @@ from config import PROJECT_ID
 
 bq_client = bigquery.Client()
 
-def log_to_bigquery(finding: dict):
+def log_to_bigquery(finding: dict, run_id: str = "manual"):
     table_id = f"{PROJECT_ID}.devops_logs.security_findings"
     run_id = getenv("RUN_ID", "manual") 
     row = {
