@@ -40,7 +40,7 @@ jobs:
         echo "PUBSUB_TOPIC=${{ secrets.PUBSUB_TOPIC }}" >> $GITHUB_ENV
         echo "TEST_GEN_OUTPUT_TOPIC=${{ secrets.TEST_GEN_OUTPUT_TOPIC }}" >> $GITHUB_ENV
         echo "TEST_GEN_SUBSCRIPTION_ID=${{ secrets.TEST_GEN_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-
+      
     - name: 🧠 Run Code Reviewer Agent
       run: |
         git fetch origin main || true
@@ -49,11 +49,13 @@ jobs:
           echo "📄 Reviewing $file"
           python agents/code-review-agent/main.py "$file"
         done
-
+      
+    - name: 🆔 Set Run ID for traceability
+      run: echo "RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
 
     - name: 🧪 Run Test Generator Agent
       run: |
-        grep -E '\.(py|js|ts|java|cpp|c|go|sh|sql|jsx|tsx)$' changed.txt || true | while read file; do
+        grep -E '\.(py|js|ts|java|cpp|c|go|sh|sql|jsx|tsx)$' changed.txt | while read file; do
           echo "🧪 Generating test for $file"
           python agents/Test_generator/main.py "$file"
         done
