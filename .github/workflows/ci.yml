@@ -47,14 +47,14 @@ jobs:
         git diff --name-only origin/main...HEAD > changed.txt || touch changed.txt
         grep -E '\.(py|js|ts|java|cpp|c|go|sh|sql|jsx|tsx)$' changed.txt || true | while read file; do
           echo "📄 Reviewing $file"
-          python agents/code-review-agent/main.py "$file"
+          python agents/code-review-agent/main.py
         done
 
     - name: 🧪 Run Test Generator Agent
       run: |
         grep -E '\.(py|js|ts|java|cpp|c|go|sh|sql|jsx|tsx)$' changed.txt || true | while read file; do
           echo "🧪 Generating test for $file"
-          python agents/Test_generator/main.py "$file"
+          python agents/Test_generator/main.py 
         done
 
     - name: 🌟 Run CI/CD Agent
