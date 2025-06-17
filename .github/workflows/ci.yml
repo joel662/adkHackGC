@@ -76,24 +76,30 @@ jobs:
         bq query --use_legacy_sql=false "
           SELECT file_path, language, test_output, llm_summary
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\`
-          ORDER BY timestamp DESC LIMIT 3
+          WHERE run_id = '${{ github.run_id }}'
+          ORDER BY timestamp DESC
         " > test_results.txt
+
 
     - name: 📊 Query recent security insights from BigQuery
       run: |
         bq query --use_legacy_sql=false "
           SELECT file_path, language, vulnerabilities, llm_explanation
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\`
-          ORDER BY timestamp DESC LIMIT 3
+          WHERE run_id = '${{ github.run_id }}'
+          ORDER BY timestamp DESC
         " > security_insights.txt
+
 
     - name: 📊 Query recent CI/CD events from BigQuery
       run: |
         bq query --use_legacy_sql=false "
           SELECT file_path, language, status, triggered_by
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\`
-          ORDER BY timestamp DESC LIMIT 3
+          WHERE run_id = '${{ github.run_id }}'
+          ORDER BY timestamp DESC
         " > cicd_summary.txt
+
 
     - name: 📄 Show summaries from BigQuery
       run: |
@@ -126,10 +132,3 @@ jobs:
       run: |
         echo "🚨 Failing workflow due to detected test failures"
         exit 1
-
-    - name: 🧹 Clean up BigQuery logs
-      if: always()
-      run: |
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\` WHERE TRUE"
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\` WHERE TRUE"
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\` WHERE TRUE"
