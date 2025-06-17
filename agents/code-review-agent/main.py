@@ -15,7 +15,6 @@ init(project=PROJECT_ID, location=LOCATION)
 model = GenerativeModel("gemini-2.0-flash-lite-001")
 
 def get_git_root() -> str:
-    """Return the top-level directory of the git repository."""
     try:
         root = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], stderr=subprocess.DEVNULL)
         return root.decode("utf-8").strip()
@@ -23,7 +22,6 @@ def get_git_root() -> str:
         raise RuntimeError("❌ Not inside a Git repository.")
 
 def publish_to_pubsub(data: dict):
-    """Publish the review result to Google Cloud Pub/Sub."""
     publisher = pubsub_v1.PublisherClient()
     topic_path = publisher.topic_path(PROJECT_ID, PUBSUB_TOPIC)
     message = json.dumps(data).encode("utf-8")
@@ -32,6 +30,7 @@ def publish_to_pubsub(data: dict):
 
 def review_code(source_path: str):
     try:
+        print(f"💡 Reviewing file: {source_path}")
         code = read_local_file(source_path)
         language = detect_language_from_extension(source_path)
         prompt = build_code_review_prompt(code, language)
@@ -53,11 +52,9 @@ def review_code(source_path: str):
             "review_summary": parsed_json
         }
 
-        # Save state
         with open("agent_state.json", "w") as f:
             json.dump({"last_review": review_result}, f, indent=2)
 
-        # Publish to Pub/Sub
         publish_to_pubsub(review_result)
 
     except Exception as e:
@@ -65,19 +62,16 @@ def review_code(source_path: str):
 
 def review_all_code_in_repo(repo_root: str):
     for root, dirs, files in os.walk(repo_root):
-        # Skip any folder that contains 'agents' in its path
-        if "agents" in root.split(os.sep):
-            continue
-
         for file in files:
             if any(file.endswith(ext) for ext in SUPPORTED_EXTENSIONS):
                 full_path = os.path.join(root, file)
+                print(f"🔍 Scanning: {full_path}")
                 review_code(full_path)
 
 if __name__ == "__main__":
     try:
-        
         repo_root = get_git_root()
+        print(f"📁 Git root detected at: {repo_root}")
         review_all_code_in_repo(repo_root)
         print("✅ Code review completed for all supported files in the repository.")
     except Exception as e:
