@@ -1,6 +1,7 @@
 import subprocess
 import os
 import json
+import sys
 from vertexai import init
 from vertexai.preview.generative_models import GenerativeModel
 from google.cloud import pubsub_v1
