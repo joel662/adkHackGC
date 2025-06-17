@@ -26,7 +26,6 @@ jobs:
         pip install --upgrade pip
         pip install GitPython google-cloud-aiplatform google-cloud-pubsub google-cloud-bigquery python-dotenv
         for path in agents/*/requirements.txt; do pip install -r "$path"; done
-
     - name: 🔐 Authenticate with Google Cloud
       uses: google-github-actions/auth@v2
       with:
@@ -59,15 +58,12 @@ jobs:
           echo "🧪 Generating test for $file"
           python agents/Test_generator/main.py "$file"
         done
-
     - name: 🌟 Run CI/CD Agent
       run: |
         python agents/CICD_agent/main.py || true
-
     - name: 🔒 Run Security Agent
       run: |
         python agents/SecurityAgent/main.py || true
-
     - name: 🕒 Wait for agent messages
       run: sleep 20
 
@@ -76,25 +72,25 @@ jobs:
         bq query --use_legacy_sql=false "
           SELECT file_path, language, test_output, llm_summary
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\`
-          ORDER BY timestamp DESC LIMIT 3
+          WHERE run_id = '${{ github.run_id }}'
+          ORDER BY timestamp DESC
         " > test_results.txt
-
     - name: 📊 Query recent security insights from BigQuery
       run: |
         bq query --use_legacy_sql=false "
           SELECT file_path, language, vulnerabilities, llm_explanation
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\`
-          ORDER BY timestamp DESC LIMIT 3
+          WHERE run_id = '${{ github.run_id }}'
+          ORDER BY timestamp DESC
         " > security_insights.txt
-
     - name: 📊 Query recent CI/CD events from BigQuery
       run: |
         bq query --use_legacy_sql=false "
           SELECT file_path, language, status, triggered_by
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\`
-          ORDER BY timestamp DESC LIMIT 3
+          WHERE run_id = '${{ github.run_id }}'
+          ORDER BY timestamp DESC
         " > cicd_summary.txt
-
     - name: 📄 Show summaries from BigQuery
       run: |
         echo "--- 🧪 Test Results ---"
@@ -103,7 +99,6 @@ jobs:
         cat security_insights.txt
         echo "--- 🌟 CI/CD Events ---"
         cat cicd_summary.txt
-
     - name: 🔍 Detect test failures
       id: testcheck
       run: |
@@ -112,7 +107,6 @@ jobs:
         else
           echo "fail=false" >> $GITHUB_OUTPUT
         fi
-
     - name: 📄 Upload generated test files
       if: always()
       uses: actions/upload-artifact@v4
@@ -126,10 +120,3 @@ jobs:
       run: |
         echo "🚨 Failing workflow due to detected test failures"
         exit 1
-
-    - name: 🧹 Clean up BigQuery logs
-      if: always()
-      run: |
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\` WHERE TRUE"
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\` WHERE TRUE"
-        bq query --use_legacy_sql=false "DELETE FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\` WHERE TRUE"
