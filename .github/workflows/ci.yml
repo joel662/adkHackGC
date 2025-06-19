@@ -32,15 +32,16 @@ jobs:
       with:
         credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
-    - name: 🛠️ Set environment variables
+    - name: 🆔 Set environment variables
       run: |
+        echo "RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
         echo "PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_LOCATION=us-central1" >> $GITHUB_ENV
         echo "PUBSUB_TOPIC=${{ secrets.PUBSUB_TOPIC }}" >> $GITHUB_ENV
         echo "TEST_GEN_OUTPUT_TOPIC=${{ secrets.TEST_GEN_OUTPUT_TOPIC }}" >> $GITHUB_ENV
         echo "TEST_GEN_SUBSCRIPTION_ID=${{ secrets.TEST_GEN_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-      
+
     - name: 🧠 Run Code Reviewer Agent
       run: |
         git fetch origin main || true
@@ -49,9 +50,6 @@ jobs:
           echo "📄 Reviewing $file"
           python agents/code-review-agent/main.py "$file"
         done
-      
-    - name: 🆔 Set Run ID for traceability
-      run: echo "RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
 
     - name: 🧪 Run Test Generator Agent
       run: |
@@ -80,7 +78,6 @@ jobs:
           ORDER BY timestamp DESC
         " > test_results.txt
 
-
     - name: 📊 Query recent security insights from BigQuery
       run: |
         bq query --use_legacy_sql=false "
@@ -90,7 +87,6 @@ jobs:
           ORDER BY timestamp DESC
         " > security_insights.txt
 
-
     - name: 📊 Query recent CI/CD events from BigQuery
       run: |
         bq query --use_legacy_sql=false "
@@ -99,7 +95,6 @@ jobs:
           WHERE run_id = '${{ github.run_id }}'
           ORDER BY timestamp DESC
         " > cicd_summary.txt
-
 
     - name: 📄 Show summaries from BigQuery
       run: |
