@@ -32,15 +32,15 @@ jobs:
       with:
         credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
-    - name: 🆔 Set environment variables
+    - name: 🆔 Set environment variables and Run ID
       run: |
-        echo "RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
         echo "PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
         echo "VERTEX_LOCATION=us-central1" >> $GITHUB_ENV
         echo "PUBSUB_TOPIC=${{ secrets.PUBSUB_TOPIC }}" >> $GITHUB_ENV
         echo "TEST_GEN_OUTPUT_TOPIC=${{ secrets.TEST_GEN_OUTPUT_TOPIC }}" >> $GITHUB_ENV
         echo "TEST_GEN_SUBSCRIPTION_ID=${{ secrets.TEST_GEN_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "RUN_ID=run-$(date +%Y%m%d)-$(uuidgen | cut -d '-' -f1)" >> $GITHUB_ENV
 
     - name: 🧠 Run Code Reviewer Agent
       run: |
@@ -50,9 +50,6 @@ jobs:
           echo "📄 Reviewing $file"
           python agents/code-review-agent/main.py "$file"
         done
-      
-    - name: 🆔 Set Run ID for traceability
-      run: echo "RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
 
     - name: 🧪 Run Test Generator Agent
       run: |
@@ -77,7 +74,7 @@ jobs:
         bq query --use_legacy_sql=false "
           SELECT file_path, language, test_output, llm_summary
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\`
-          WHERE run_id = '${{ github.run_id }}'
+          WHERE run_id = '${{ env.RUN_ID }}'
           ORDER BY timestamp DESC
         " > test_results.txt
 
@@ -86,7 +83,7 @@ jobs:
         bq query --use_legacy_sql=false "
           SELECT file_path, language, vulnerabilities, llm_explanation
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\`
-          WHERE run_id = '${{ github.run_id }}'
+          WHERE run_id = '${{ env.RUN_ID }}'
           ORDER BY timestamp DESC
         " > security_insights.txt
 
@@ -95,7 +92,7 @@ jobs:
         bq query --use_legacy_sql=false "
           SELECT file_path, language, status, triggered_by
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\`
-          WHERE run_id = '${{ github.run_id }}'
+          WHERE run_id = '${{ env.RUN_ID }}'
           ORDER BY timestamp DESC
         " > cicd_summary.txt
 
