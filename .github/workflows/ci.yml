@@ -50,6 +50,9 @@ jobs:
           echo "📄 Reviewing $file"
           python agents/code-review-agent/main.py "$file"
         done
+      
+    - name: 🆔 Set Run ID for traceability
+      run: echo "RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
 
     - name: 🧪 Run Test Generator Agent
       run: |
