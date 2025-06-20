@@ -11,8 +11,8 @@ CICD_SUBSCRIPTION_ID = os.getenv("CICD_SUBSCRIPTION_ID") or os.environ.get("CICD
 
 # Optional GitHub workflow info
 GITHUB_TOKEN = os.getenv("MY_PAT_TOKEN") or os.environ.get("MY_PAT_TOKEN")
-GITHUB_REPO = os.getenv("GITHUB_REPO") or os.environ.get("GITHUB_REPO")
-GITHUB_BRANCH = os.getenv("GITHUB_BRANCH") or os.environ.get("GITHUB_BRANCH", "main")
+GITHUB_REPO = os.getenv("REPO_NAME") or os.environ.get("REPO_NAME")
+GITHUB_BRANCH = os.getenv("REPO_BRANCH" , "main") or os.environ.get("REPO_BRANCH", "main")
 
 if not PROJECT_ID:
     raise EnvironmentError("❌ PROJECT_ID is not set. Check your .env.local file.")
