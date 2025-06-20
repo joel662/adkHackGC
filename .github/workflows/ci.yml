@@ -10,6 +10,18 @@ jobs:
     name: 🚀 Full Multi-Agent Test Pipeline
     runs-on: ubuntu-latest
 
+    env:
+      RUN_ID: run-${{ github.run_id }}-${{ github.sha }}
+      PROJECT_ID: ${{ secrets.GCP_PROJECT }}
+      VERTEX_PROJECT_ID: ${{ secrets.GCP_PROJECT }}
+      VERTEX_LOCATION: us-central1
+      PUBSUB_TOPIC: ${{ secrets.PUBSUB_TOPIC }}
+      TEST_GEN_OUTPUT_TOPIC: ${{ secrets.TEST_GEN_OUTPUT_TOPIC }}
+      TEST_GEN_SUBSCRIPTION_ID: ${{ secrets.TEST_GEN_SUBSCRIPTION_ID }}
+      GITHUB_TOKEN: ${{ secrets.MY_PAT_TOKEN }}
+      GITHUB_REPO: ${{ secrets.REPO_NAME }}
+      GITHUB_BRANCH: ${{ secrets.REPO_BRANCH }}
+
     steps:
     - name: 🕕️ Checkout repository
       uses: actions/checkout@v4
@@ -26,23 +38,12 @@ jobs:
         pip install --upgrade pip
         pip install GitPython google-cloud-aiplatform google-cloud-pubsub google-cloud-bigquery python-dotenv
         for path in agents/*/requirements.txt; do pip install -r "$path"; done
+
     - name: 🔐 Authenticate with Google Cloud
       uses: google-github-actions/auth@v2
       with:
         credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
-    - name: 🆔 Set environment variables and Run ID
-      run: |
-        echo "PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
-        echo "VERTEX_PROJECT_ID=${{ secrets.GCP_PROJECT }}" >> $GITHUB_ENV
-        echo "VERTEX_LOCATION=us-central1" >> $GITHUB_ENV
-        echo "PUBSUB_TOPIC=${{ secrets.PUBSUB_TOPIC }}" >> $GITHUB_ENV
-        echo "TEST_GEN_OUTPUT_TOPIC=${{ secrets.TEST_GEN_OUTPUT_TOPIC }}" >> $GITHUB_ENV
-        echo "TEST_GEN_SUBSCRIPTION_ID=${{ secrets.TEST_GEN_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-        echo "GITHUB_TOKEN=${{ secrets.MY_PAT_TOKEN }}" >> $GITHUB_ENV
-        echo "GITHUB_REPO=${{ secrets.REPO_NAME }}" >> $GITHUB_ENV
-        echo "GITHUB_BRANCH=${{ secrets.REPO_BRANCH }}" >> $GITHUB_ENV
-        echo "RUN_ID=run-$(date +%Y%m%d)-$(uuidgen | cut -d '-' -f1)" >> $GITHUB_ENV
     - name: 🧠 Run Code Reviewer Agent
       run: |
         git fetch origin main || true
@@ -51,18 +52,22 @@ jobs:
           echo "📄 Reviewing $file"
           python agents/code-review-agent/main.py "$file"
         done
+
     - name: 🧪 Run Test Generator Agent
       run: |
         grep -E '\.(py|js|ts|java|cpp|c|go|sh|sql|jsx|tsx)$' changed.txt | while read file; do
           echo "🧪 Generating test for $file"
           python agents/Test_generator/main.py "$file"
         done
+
     - name: 🌟 Run CI/CD Agent
       run: |
         python agents/CICD_agent/main.py || true
+
     - name: 🔒 Run Security Agent
       run: |
         python agents/SecurityAgent/main.py || true
+
     - name: 🕒 Wait for agent messages
       run: sleep 20
 
@@ -71,25 +76,28 @@ jobs:
         bq query --use_legacy_sql=false "
           SELECT file_path, language, test_output, llm_summary
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.test_results\`
-          WHERE run_id = '${{ env.RUN_ID }}'
+          WHERE run_id = '${RUN_ID}'
           ORDER BY timestamp DESC
         " > test_results.txt
+
     - name: 📊 Query recent security insights from BigQuery
       run: |
         bq query --use_legacy_sql=false "
           SELECT file_path, language, vulnerabilities, llm_explanation
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.security_findings\`
-          WHERE run_id = '${{ env.RUN_ID }}'
+          WHERE run_id = '${RUN_ID}'
           ORDER BY timestamp DESC
         " > security_insights.txt
+
     - name: 📊 Query recent CI/CD events from BigQuery
       run: |
         bq query --use_legacy_sql=false "
           SELECT file_path, language, status, triggered_by
           FROM \`${{ secrets.GCP_PROJECT }}.devops_logs.cicd_events\`
-          WHERE run_id = '${{ env.RUN_ID }}'
+          WHERE run_id = '${RUN_ID}'
           ORDER BY timestamp DESC
         " > cicd_summary.txt
+
     - name: 📄 Show summaries from BigQuery
       run: |
         echo "--- 🧪 Test Results ---"
@@ -98,6 +106,7 @@ jobs:
         cat security_insights.txt
         echo "--- 🌟 CI/CD Events ---"
         cat cicd_summary.txt
+
     - name: 🔍 Detect test failures
       id: testcheck
       run: |
@@ -106,6 +115,7 @@ jobs:
         else
           echo "fail=false" >> $GITHUB_OUTPUT
         fi
+
     - name: 📄 Upload generated test files
       if: always()
       uses: actions/upload-artifact@v4
