@@ -5,7 +5,7 @@ import re
 import shutil
 import subprocess
 from datetime import datetime
-from git import Repo
+from git import Repo # type: ignore
 from vertexai import init
 from vertexai.preview.generative_models import GenerativeModel
 from google.cloud import pubsub_v1, bigquery
@@ -188,7 +188,7 @@ import re
 import shutil
 import subprocess
 from datetime import datetime
-from git import Repo
+from git import Repo # type: ignore
 from vertexai import init
 from vertexai.preview.generative_models import GenerativeModel
 from google.cloud import pubsub_v1, bigquery
