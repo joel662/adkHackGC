@@ -133,8 +133,8 @@ def generate_test_for_file(source_path: str, output_dir: str, root_dir: str, rev
         publish_test_result(test_result)
         log_to_bigquery(test_result)
 
-        if language == "python" and deps:
-            uninstall_dependencies(deps)
+        # if language == "python" and deps:
+        #     uninstall_dependencies(deps)
 
         os.remove(root_test_path)
 
@@ -318,8 +318,8 @@ def generate_test_for_file(source_path: str, output_dir: str, root_dir: str, rev
         publish_test_result(test_result)
         log_to_bigquery(test_result)
 
-        if language == "python" and deps:
-            uninstall_dependencies(deps)
+        # if language == "python" and deps:
+        #     uninstall_dependencies(deps)
 
         os.remove(root_test_path)
 
