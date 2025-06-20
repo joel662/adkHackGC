@@ -40,9 +40,9 @@ jobs:
         echo "PUBSUB_TOPIC=${{ secrets.PUBSUB_TOPIC }}" >> $GITHUB_ENV
         echo "TEST_GEN_OUTPUT_TOPIC=${{ secrets.TEST_GEN_OUTPUT_TOPIC }}" >> $GITHUB_ENV
         echo "TEST_GEN_SUBSCRIPTION_ID=${{ secrets.TEST_GEN_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-        echo "GITHUB_REPO=${{ github.repository }}" >> $GITHUB_ENV
-        echo "GITHUB_BRANCH=${{ github.ref_name }}" >> $GITHUB_ENV
         echo "GITHUB_TOKEN=${{ secrets.MY_PAT_TOKEN }}" >> $GITHUB_ENV
+        echo "GITHUB_REPO=${{ secrets.REPO_NAME }}" >> $GITHUB_ENV
+        echo "GITHUB_BRANCH=${{ secrets.REPO_BRANCH }}" >> $GITHUB_ENV
         echo "RUN_ID=run-$(date +%Y%m%d)-$(uuidgen | cut -d '-' -f1)" >> $GITHUB_ENV
 
     - name: 🧠 Run Code Reviewer Agent
